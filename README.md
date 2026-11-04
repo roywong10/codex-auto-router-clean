@@ -1,4 +1,122 @@
-# Jev Codex Router
+# DeepSeek Codex Router
+
+这是基于 Jev Codex Router 的个人定制版。默认使用 **DeepSeek 判断 effort，
+Sol 执行主干任务**，专项工作交给固定模型的角色代理。下方“上游说明”保留
+原项目文档；与本节冲突时，以本节及 [本地改动记录](LOCAL-OPENCODE-GO.md) 为准。
+MIT 许可证与上游来源信息保持不变。
+
+## 本版分工
+
+| 职责 | 模型 |
+| --- | --- |
+| 主干、需求判断、日常编码与整合验收 | GPT-6.1 Sol |
+| `router_role_explore` / `router_role_execute` | GPT-6.1 Sol |
+| `router_role_mechanical`：明确的机械修改 | GPT-6 Luna |
+| `router_role_visual`：视觉、Computer Use、浏览器操作 | GPT-6.1 Terra |
+| `router_role_plan` / `router_role_review`：困难规划、独立审查 | GPT-6 Astra |
+
+所有角色独立自动判断 effort。主干不会因为任务复杂而自动换模型；
+角色代理是否调用，仍受 Codex、用户和仓库的委派规则约束，不是每轮都启动。
+角色定义由安装过程生成到 `~/.codex/agents/router-role-*.toml`。
+
+主干的菜单 effort 提供下限，而不是锁定值：
+
+| 菜单选择 | 最低实际 effort |
+| --- | --- |
+| Low / Medium / 未指定 | Low，保留完整自动判断 |
+| High | Medium |
+| XHigh | High |
+| Max | XHigh |
+
+最终值取自动判断和下限中较高者。缓存复用和技术回退同样遵守下限。
+**子代理不继承主干下限**，机械任务仍可用 Low。请求无法区分手动选择
+和应用自动填写的同一个值；例如应用默认传 High，也会产生 Medium 下限。
+
+## 安装本版
+
+需要 macOS、已登录的 Codex desktop/CLI、Node.js 22.19+、Python 3.11+，
+以及自己的 OpenCode Go API key 和可用的 Codex 模型额度。
+以下命令在你自己的 Terminal 执行，不需要把 key 发给助手。
+
+### 1. 克隆私有源码
+
+先确保 GitHub CLI 已登录且能访问此仓库。已有本机安装时不要重复克隆：
+
+```sh
+gh repo clone roywong10/deepseek-codex-router "$HOME/.local/share/jev-codex-router-source"
+cd "$HOME/.local/share/jev-codex-router-source"
+```
+
+### 2. 配置 Keychain
+
+在 macOS 的“钥匙串访问”应用中，往登录钥匙串新建一个密码项目：
+
+| 字段 | 值 |
+| --- | --- |
+| 名称 / service | `codex-router/opencode-go` |
+| 账户 / account | 你的 macOS 用户名，与下面的 `$USER` 一致 |
+| 密码 | 你的 OpenCode Go 原始 API key，不加引号或 `Bearer` |
+
+首次读取时按系统提示允许访问。不要把 key 放进命令参数、shell 历史、
+`.env`、README、仓库或聊天。以下环境变量只有项目名称与账户，不含密钥：
+
+```sh
+export JEV_DECISION_PROVIDER=opencode-go
+export OPENCODE_GO_KEYCHAIN_SERVICE=codex-router/opencode-go
+export OPENCODE_GO_KEYCHAIN_ACCOUNT="$USER"
+./install.sh
+```
+
+已有钥匙串项目可直接使用其实际 service/account，无需再存一份。
+安装器会将这些非敏感引用保存在 LaunchAgent，后台服务从钥匙串读取 key。
+本版 Go 模式不需要额外配置 TypeSafe/Jev key。
+
+### 3. 授权与验收
+
+安装器分别询问是否允许本机读取 Codex `auth.json` 使用已登录的 ChatGPT
+会话，以及是否发送一次消耗额度的 smoke 请求。ChatGPT token 不发送给
+DeepSeek；分类器只接收有界的任务材料，完整执行请求交给 Codex 模型。
+跳过 smoke 不影响安装，但不能据此声称真实调用已验证。
+
+完全退出并重开 Codex，选择 **Auto (DeepSeek router)**。在同一个已配置
+环境变量的 Terminal 中运行：
+
+```sh
+bin/jev-codex-router doctor
+bin/jev-codex-router smoke
+```
+
+真实验收应看到 `decision_source=opencode-go`、主干模型为 `gpt-6.1-sol`、
+相符的实际响应模型、effort 和成功完成状态。只有菜单项或健康检查不算验收。
+`~/.codex/codex-router/jev-router-live.jsonl` 中的 `depth` 是分类结果，
+`effort_floor` 是主干下限，`effort` 是实际执行值；日志仅在本机查看。
+
+分类失败保持当前角色模型，默认 Medium，并应用主干下限；不静默换模型。
+原生额度耗尽时，固定角色返回明确错误。Go 模式不支持通用 `/ask`，
+分类专用的 `/v1/route` 保持独立自适应策略。
+
+## 更新与安全
+
+**不要运行下方上游 bootstrap 或 `bin/jev-codex-router update` 来更新此定制版。**
+它们仍绑定上游仓库，会拒绝不同 remote，不能用于更新此私有版。
+从私有仓库更新时，在确认工作区干净、路由没有活动请求后执行：
+
+```sh
+git pull --ff-only origin main
+./install.sh
+```
+
+使用同一个配置好 provider/keychain 引用的 Terminal。安装会重载服务，
+所以不要在其他对话仍执行时运行。同步上游改动应单独审查，不能覆盖本地策略。
+卸载命令为 `bin/jev-codex-router uninstall`；只有明确撤销会话共享时才加
+`--revoke-session`。卸载保留本机 key 和诊断记录。
+
+此仓库仅保存源码、测试和文档，不包含本机 key、ChatGPT token、运行日志或
+用户对话。修改前后的本机路径和验收记录见 [LOCAL-OPENCODE-GO.md](LOCAL-OPENCODE-GO.md)。
+
+---
+
+## 上游说明：Jev Codex Router
 
 Contributing? See [CONTRIBUTING.md](CONTRIBUTING.md),
 [SECURITY.md](SECURITY.md), and the [release checklist](docs/RELEASING.md).
@@ -75,8 +193,9 @@ bin/jev-codex-router smoke
 
 ### 模型与推理强度
 
-- Jev 为每次调用独立选择模型与 effort。当前原生梯队为 GPT-6 Luna → GPT-6.1 Sol → GPT-6 Astra；架构、独立最终评审及安全、权限、并发、迁移、公共 API 兼容或重大性能风险的评审保留 Astra 下限。
+- Jev 为每次调用独立选择模型与 effort。当前原生候选为 GPT-6 Luna、GPT-6.1 Terra、GPT-6.1 Sol、GPT-6 Astra；架构、独立最终评审及安全、权限、并发、迁移、公共 API 兼容或重大性能风险的评审保留 Astra 下限。
 - Luna 处理目标明确的低风险修改、原因已明确且沿用已有模式的小修复、简单检查、已有材料的摘要与直接解释。GPT-6.1 Sol 承担新诊断、复杂编码、重构、多步工具工作、普通的非局部调试与研究综合；复杂本身不自动要求 Astra。最难或高度含糊的调查、已核实输入与权限后仍反复失败的实质修复、必要风险评审由 Astra 承担。缺信息或权限先补齐，传输失败不当作能力不足；effort 仍独立选择，强模型不自动用更高强度。
+- GPT-6.1 Terra 是独立候选，用于视觉理解、明确目标的浏览器/桌面操作、自然写作和有验证办法的局部代码修复；复杂编码与广泛的新诊断仍优先 Sol。定位依据：[官方模型选择说明](https://learn.chatgpt.com/docs/model-selection)（2026-11-01 核对）。
 - 能力足够且总成本接近时，Jev 会倾向当前前缀仍匹配、已实测读取缓存的模型；旧命中或上次模型本身不构成保留高档模型的理由。没有预设的模型占比。
 - 空响应后的技术恢复最多尝试一次 Astra / medium；若思考或可执行输出已经流出，不静默重放。只有思考、没有回答的终态记为失败，并结束旧路由租约。下一次判断会携带同一轮次近期失败的模型、强度、类别和次数；这不是任务能力评分，也没有“失败 N 次必升档”的硬规则。失败元数据只在本机内存保留最多 30 分钟、256 个轮次，不含对话正文。
 - `Auto (Jev)` 菜单中的推理强度不是路由锁定值。它只是 Codex 请求的一部分；Jev 会另行决定实际 effort。保持默认即可，不必反复调整菜单。
@@ -165,7 +284,9 @@ unchanged even when options are close. Jev's conservative combined confidence
 and all four choice distributions are logged separately; neither is a measured
 probability that the selected model will successfully finish the task.
 
-The active native ladder is GPT-6 Luna → GPT-6.1 Sol → GPT-6 Astra. Luna covers
+The active native pool is GPT-6 Luna, GPT-6.1 Terra, GPT-6.1 Sol and GPT-6 Astra.
+Terra is an independent choice for visual reasoning, precise computer use, natural
+writing and scoped code fixes with defined inputs and verification. Luna covers
 focused low-risk work and known-pattern fixes. Sol's near-Astra capability covers
 ordinary complex coding, multi-step tool work, refactors, nonlocal debugging and
 research synthesis. Astra handles the hardest ambiguity, substantive failed Sol
@@ -176,7 +297,7 @@ GPT-5.6 Luna/Sol/Terra IDs remain in reports only for
 historical log and rate-card interpretation; their prices are not applied to
 GPT-6 Luna or Sol.
 
-Policy `split-v17-gpt6-luna-sol-astra` judges remaining work rather than inheriting a
+Policy `split-v18-gpt6-luna-terra-sol-astra` judges remaining work rather than inheriting a
 completed review's category. Clear low-risk edits, summaries and explanations can use Luna;
 implied intent, underspecified goals and autonomous investigation favor Sol.
 The objective includes correction and clarification costs. There is no

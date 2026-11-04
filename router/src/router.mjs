@@ -1047,7 +1047,9 @@ function routedSearchCompatibility(payload, route) {
 // canonical replay: aging or windowing it here would make the Jev projection
 // accidentally become the only context available to the executing model.
 function requiresCanonicalReplay(route) {
-  return route?.slug === "jev/auto";
+  return route?.provider === "jev" &&
+    (route?.slug === "jev/auto" ||
+     /^jev\/role-(explore|execute|mechanical|visual|plan|review)$/.test(route?.slug || ""));
 }
 
 function inputHasWebSearchHistory(input) {
@@ -4156,7 +4158,7 @@ async function handleResponses(request, response, requestUrl) {
   });
   try {
     if (!requireCodexTransport(request, response)) return;
-    const exactRouteProbe = exactRouteProbeRequested(request.headers);
+    let exactRouteProbe = exactRouteProbeRequested(request.headers);
     const canonicalReplay = canonicalReplayRequested(request.headers);
     const encoded = await readRequestBody(request, { signal: controller.signal });
     const body = await decodeBody(encoded, request.headers["content-encoding"]);
@@ -4215,6 +4217,8 @@ async function handleResponses(request, response, requestUrl) {
     route = registeredRoute && routeProviderEnabled(registeredRoute.provider)
       ? registeredRoute
       : undefined;
+    // Jev owns execution identity and any permitted recovery, including quota.
+    exactRouteProbe ||= requiresCanonicalReplay(route);
     if (route) {
       const invalidHistoryCall = findUnusableFunctionCallArguments(payload.input);
       if (invalidHistoryCall) {

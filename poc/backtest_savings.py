@@ -4,7 +4,7 @@
 Replays real turns from the last N days:
   - real tokens per turn   (token_usage_record → turn_token_usage)
   - real model per session (thread_settings_applied)
-  - Jev route per turn     (tier + depth → luna/sol/astra policy)
+  - Jev route per turn     (tier + depth → luna/terra/sol/astra policy)
 and compares the "API-equivalent" cost of both scenarios at published prices
 (short context, Sep 2026):
 
@@ -27,9 +27,11 @@ RESULT_PATH = os.path.expanduser("~/.codex/codex-router/jev-backtest.json")
 
 # Prices per 1M tokens from the official OpenAI model pages:
 # developers.openai.com/api/docs/models/gpt-6-{luna,sol,astra}
+# developers.openai.com/api/docs/models/gpt-6.1-terra
 PRICES = {
     "gpt-6-astra":   (10.00, 50.00, 1.00, 12.50),   # (input, output, cached_in, cache_write)
     "gpt-6-sol":     (2.00, 10.00, 0.20, 2.50),
+    "gpt-6.1-terra": (1.00, 5.00, 0.05, 1.25),
     "gpt-6-luna":    (0.10, 0.50, 0.01, 0.125),
     "gpt-5.6-sol":   (4.00, 20.00, 0.40, 5.00),
     "gpt-5.6-terra": (2.00, 12.00, 0.20, 2.50),
@@ -276,7 +278,7 @@ def main():
     else:
         print("100% scenarios and full-Astra baseline: unknown (no comparable priced turns)")
     print("-" * 72)
-    for k in ("gpt-6-luna", "gpt-6-sol", "gpt-6-astra", "gpt-5.6-luna", "gpt-5.6-sol"):
+    for k in ("gpt-6-luna", "gpt-6.1-terra", "gpt-6-sol", "gpt-6-astra", "gpt-5.6-luna", "gpt-5.6-sol"):
         unpriced = unpriced_jev_models.get(k, 0)
         print(f"  {k:<14} {dist_counts.get(k,0):>4} priced turns · "
               f"{unpriced:>4} unpriced · ${dist_costs.get(k,0):.2f}")

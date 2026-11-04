@@ -224,6 +224,7 @@ class PerCallEndToEnd(unittest.TestCase):
         stack = ExitStack()
         self.addCleanup(stack.close)
         self.enterContext = stack.enter_context
+        self.enterContext(mock.patch.dict(os.environ, {"JEV_EXECUTION_POLICY": "adaptive"}))
         self.enterContext(mock.patch.object(jev, "local_secret", return_value="fixture-local"))
         Edge.payloads = []
         Edge.headers_seen = []

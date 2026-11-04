@@ -49,6 +49,7 @@ class EmbeddedRouterLayout(unittest.TestCase):
             env = {
                 **os.environ,
                 "CODEX_ROUTER_STATE_DIR": str(state_dir),
+                "CODEX_HOME": str(pathlib.Path(temp) / "home"),
             }
             command = ["node", str(ROOT / "server" / "configure-model.mjs")]
             subprocess.run(command, check=True, env=env, capture_output=True, text=True)

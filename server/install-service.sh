@@ -15,8 +15,24 @@ PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 LOGDIR="$HOME/Library/Logs"
 CODEX_HOME_VALUE="${CODEX_HOME:-$HOME/.codex}"
 STATE_VALUE="${MODEL_ROUTER_STATE_DIR:-${CODEX_ROUTER_STATE_DIR:-${KIMI_CODEX_STATE_DIR:-$CODEX_HOME_VALUE/codex-router}}}"
-JEV_API_KEY_FILE_VALUE="${JEV_API_KEY_FILE-$(/usr/libexec/PlistBuddy -c 'Print :EnvironmentVariables:JEV_API_KEY_FILE' "$PLIST" 2>/dev/null || true)}"
-JEV_ENV_FILE_VALUE="${JEV_ENV_FILE-$(/usr/libexec/PlistBuddy -c 'Print :EnvironmentVariables:JEV_ENV_FILE' "$PLIST" 2>/dev/null || true)}"
+# PlistBuddy writes a diagnostic to stdout when the file is absent. Never use
+# that diagnostic as an environment value during the first installation.
+saved_environment() {
+  [ -f "$PLIST" ] || return 0
+  /usr/libexec/PlistBuddy -c "Print :EnvironmentVariables:$1" "$PLIST" 2>/dev/null || true
+}
+
+JEV_API_KEY_FILE_VALUE="${JEV_API_KEY_FILE-$(saved_environment JEV_API_KEY_FILE)}"
+JEV_ENV_FILE_VALUE="${JEV_ENV_FILE-$(saved_environment JEV_ENV_FILE)}"
+
+JEV_DECISION_PROVIDER_VALUE="${JEV_DECISION_PROVIDER-$(saved_environment JEV_DECISION_PROVIDER)}"
+JEV_DECISION_PROVIDER_VALUE="${JEV_DECISION_PROVIDER_VALUE:-typesafe}"
+OPENCODE_GO_KEYCHAIN_SERVICE_VALUE="${OPENCODE_GO_KEYCHAIN_SERVICE-$(saved_environment OPENCODE_GO_KEYCHAIN_SERVICE)}"
+OPENCODE_GO_KEYCHAIN_ACCOUNT_VALUE="${OPENCODE_GO_KEYCHAIN_ACCOUNT-$(saved_environment OPENCODE_GO_KEYCHAIN_ACCOUNT)}"
+case "$JEV_DECISION_PROVIDER_VALUE" in
+  typesafe|opencode-go) ;;
+  *) echo "Unsupported decision provider" >&2; exit 1 ;;
+esac
 
 xml_escape() {
   printf '%s' "$1" |
@@ -30,6 +46,12 @@ JEV_API_KEY_FILE_XML=""
 if [ -n "$JEV_API_KEY_FILE_VALUE" ]; then
   [ -r "$JEV_API_KEY_FILE_VALUE" ] || { echo "Jev API key file is not readable" >&2; exit 1; }
   JEV_API_KEY_FILE_XML="$(xml_escape "$JEV_API_KEY_FILE_VALUE")"
+fi
+OPENCODE_GO_KEYCHAIN_SERVICE_XML="$(xml_escape "$OPENCODE_GO_KEYCHAIN_SERVICE_VALUE")"
+OPENCODE_GO_KEYCHAIN_ACCOUNT_XML="$(xml_escape "$OPENCODE_GO_KEYCHAIN_ACCOUNT_VALUE")"
+if [ "$JEV_DECISION_PROVIDER_VALUE" = opencode-go ]; then
+  [ -n "$OPENCODE_GO_KEYCHAIN_SERVICE_VALUE" ] && [ -n "$OPENCODE_GO_KEYCHAIN_ACCOUNT_VALUE" ] \
+    || { echo "OpenCode Go keychain service and account are required" >&2; exit 1; }
 fi
 JEV_ENV_XML=""
 if [ -n "$JEV_ENV_FILE_VALUE" ]; then
@@ -71,6 +93,11 @@ cat > "$PLIST" <<EOF
   <key>WorkingDirectory</key><string>$RUNTIME</string>
   <key>EnvironmentVariables</key>
   <dict>
+    <key>JEV_DECISION_PROVIDER</key><string>$JEV_DECISION_PROVIDER_VALUE</string>
+$(if [ "$JEV_DECISION_PROVIDER_VALUE" = opencode-go ]; then
+    printf '    <key>OPENCODE_GO_KEYCHAIN_SERVICE</key><string>%s</string>\n' "$OPENCODE_GO_KEYCHAIN_SERVICE_XML"
+    printf '    <key>OPENCODE_GO_KEYCHAIN_ACCOUNT</key><string>%s</string>\n' "$OPENCODE_GO_KEYCHAIN_ACCOUNT_XML"
+  fi)
     <key>CODEX_HOME</key><string>$CODEX_HOME_XML</string>
     <key>CODEX_ROUTER_STATE_DIR</key><string>$STATE_XML</string>
 $(if [ -n "$JEV_API_KEY_FILE_XML" ]; then

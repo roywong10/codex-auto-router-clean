@@ -1,6 +1,7 @@
-"""Reproducible classifier calibration; --live spends only Jev input credits."""
+"""Reproducible calibration; --live consumes the selected classifier allowance."""
 import argparse
 import json
+import secrets
 from pathlib import Path
 import sys
 import time
@@ -18,7 +19,8 @@ def main():
         cases = json.load(source)
     key = jev.load_key() if args.live else None
     if args.live and not key:
-        raise SystemExit("TypeSafe key not configured")
+        raise SystemExit("Classifier key not configured")
+    session_id = "routing-eval-" + secrets.token_hex(16)
     passed = 0
     for case in cases:
         state = jev.decision_dossier({"input": case["input"]})
@@ -27,7 +29,7 @@ def main():
         if args.live:
             start = time.monotonic()
             try:
-                result = jev.call_jev_routed(key, state, timeout=15)
+                result = jev.call_jev_routed(key, state, timeout=15, session_id=session_id)
                 decision = jev.decision_from_answers(result.get("answers"))
                 ok = (decision["model"] in case["models"] and
                       decision["astra_policy"] == case.get("policy", decision["astra_policy"]))

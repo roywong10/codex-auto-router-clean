@@ -134,6 +134,9 @@ tail -1 ~/.codex/codex-router/jev-router-live.jsonl
   output is never prefixed. `touch ~/.codex/codex-router/jev-router.hide-signature`
   hides the reply header; remove the sentinel to restore it.
 - **Effort selector**: leave the Codex picker at its default for `Auto (Jev)`.
+  In the fixed Sol main policy, high sets a medium floor, xhigh a high floor,
+  and max an xhigh floor. Low/medium retain unrestricted automatic effort.
+  Worker role routes ignore this preference and independently adapt effort.
   Jev controls the actual effort through `configuration_update` on eligible new
   user turns; compatible tool continuations replay prior updates in place.
   Incompatible requests use request-level `reasoning.effort`.

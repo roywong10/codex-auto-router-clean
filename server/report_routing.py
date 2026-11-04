@@ -32,12 +32,13 @@ published input rates; it does not represent the user's traffic or actual call
 cost. New attempts may also include observed-token credit-rate estimates where
 a published rate is available. GPT-6 credit usage remains unpriced here.
 
-    GPT-6: astra $10/$50 · sol $2/$10 · luna $0.10/$0.50
+    GPT-6: astra $10/$50 · sol $2/$10 · terra $1/$5 · luna $0.10/$0.50
     GPT-5.6 historical: sol $4/$20 · terra $2/$12 · luna $0.20/$1.20
 
 GPT-6 list prices follow the official OpenAI model pages for
 [`gpt-6-luna`](https://developers.openai.com/api/docs/models/gpt-6-luna),
 [`gpt-6.1-sol`](https://developers.openai.com/api/docs/models/gpt-6.1-sol),
+[`gpt-6.1-terra`](https://developers.openai.com/api/docs/models/gpt-6.1-terra),
 [`gpt-6-sol`](https://developers.openai.com/api/docs/models/gpt-6-sol), and
 [`gpt-6-astra`](https://developers.openai.com/api/docs/models/gpt-6-astra).
 They are API prices, not ChatGPT credit rates; GPT-6 credit attempts remain
@@ -69,7 +70,7 @@ import sys
 from contextlib import ExitStack
 from itertools import chain
 from local_runtime import STATE
-from routing_policy import ASTRA, LUNA, POLICY_VERSION, PREVIOUS_SOL, SOL
+from routing_policy import ASTRA, LUNA, POLICY_VERSION, PREVIOUS_SOL, SOL, TERRA
 
 LIVE_LOG = os.path.join(STATE, "jev-router-live.jsonl")
 BACKTEST_STATE = os.path.join(STATE, "jev-backtest.json")
@@ -77,7 +78,7 @@ BACKTEST_STATE = os.path.join(STATE, "jev-backtest.json")
 LEGACY_LUNA, LEGACY_SOL, LEGACY_TERRA = (
     "gpt-5.6-luna", "gpt-5.6-sol", "gpt-5.6-terra"
 )
-NATIVE_TIERS = (LUNA, SOL, ASTRA, PREVIOUS_SOL, LEGACY_LUNA, LEGACY_SOL, LEGACY_TERRA)
+NATIVE_TIERS = (LUNA, TERRA, SOL, ASTRA, PREVIOUS_SOL, LEGACY_LUNA, LEGACY_SOL, LEGACY_TERRA)
 
 # Prices per 1M tokens (input, output, cached input, cache write), short context.
 # GPT-6 rates follow the linked official model pages; legacy entries preserve
@@ -85,6 +86,7 @@ NATIVE_TIERS = (LUNA, SOL, ASTRA, PREVIOUS_SOL, LEGACY_LUNA, LEGACY_SOL, LEGACY_
 PRICES = {
     ASTRA: (10.00, 50.00, 1.00, 12.50),
     SOL: (2.00, 10.00, 0.10, 2.50),
+    TERRA: (1.00, 5.00, 0.05, 1.25),
     PREVIOUS_SOL: (2.00, 10.00, 0.20, 2.50),
     LUNA: (0.10, 0.50, 0.01, 0.125),
     LEGACY_SOL: (4.00, 20.00, 0.40, 5.00),
@@ -104,6 +106,7 @@ MIX = {"input": 1_000_000, "cached": 0, "output": 0}
 SHORT = {
     LUNA: "luna",
     SOL: "sol",
+    TERRA: "terra",
     PREVIOUS_SOL: "sol",
     ASTRA: "astra",
     LEGACY_LUNA: "luna",
@@ -340,7 +343,7 @@ def prompt_cache_usage(entries):
 
 
 def routing_efficiency(entries):
-    """Paid router decisions avoided by leases, using observed Jev usage only."""
+    """Classifier calls avoided by leases; legacy jev_* keys retain their names."""
     jev_decisions = lease_hits = jev_input = 0
     sources = {}
     leases = {}
@@ -350,7 +353,7 @@ def routing_efficiency(entries):
         lease = entry.get("lease")
         if lease:
             leases[lease] = leases.get(lease, 0) + 1
-        if source == "jev":
+        if source in ("jev", "opencode-go"):
             jev_decisions += 1
         if source == "lease" or entry.get("lease_hit") is True:
             lease_hits += 1
@@ -776,7 +779,7 @@ def render_text(rep):
     lat = rep["latency_ms"]
     lines += ["", "Latency (median)",
               f"  end-to-end {fmt(lat['total_median'])} ms (p90 {fmt(lat['total_p90'])}) · "
-              f"Jev decision {fmt(lat['jev_median'])} ms (p90 {fmt(lat['jev_p90'])})"]
+              f"Classifier decision {fmt(lat['jev_median'])} ms (p90 {fmt(lat['jev_p90'])})"]
 
     cost = rep["cost"]
     measured = rep["measured_usage"]
@@ -827,10 +830,10 @@ def render_text(rep):
         )]
     efficiency = rep["routing_efficiency"]
     lines += ["", "Router input — observed decisions",
-              f"  Jev calls {efficiency['jev_decisions']} · lease hits "
+              f"  Classifier calls {efficiency['jev_decisions']} · lease hits "
               f"{efficiency['lease_hits']} · avoided "
               f"{fmt(efficiency['decision_calls_avoided_pct'])}% of eligible decisions · "
-              f"{fmt(efficiency['observed_jev_input_tokens'])} observed Jev input tokens"]
+              f"{fmt(efficiency['observed_jev_input_tokens'])} observed classifier input tokens"]
     native = rep["native_cost"]
     lines += ["", "Native Codex calls — synthetic API input-rate comparison",
               f"  {native['turns']} calls · routed index {fmt(native['routed_rate_index_units'])} · "

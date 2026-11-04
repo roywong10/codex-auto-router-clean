@@ -99,6 +99,13 @@ from local_runtime import (
 
 from routing_policy import (ASTRA, EFFORTS, LUNA, NATIVE_MODELS, POLICY_VERSION, QUESTIONS, SOL, TERRA,
                             TIERS, decision_from_answers, route)
+from execution_roles import (
+    EXECUTION_POLICY_VERSION, ROLE_MODELS, execution_decision, execution_role,
+    prepare_role, questions_for_state, effort_floor, constrain_effort,
+)
+
+import opencode_decision
+import route_endpoint
 
 HOME = os.path.expanduser("~")
 ENV_PATH = os.path.join(HOME, ".hermes", ".env")
@@ -114,7 +121,8 @@ LOG_PATH = os.path.join(STATE, "jev-router-live.jsonl")
 LISTEN = ("127.0.0.1", 4319)
 ROUTER = ("127.0.0.1", 4202)
 
-DISPLAY_NAME = "Auto (Jev)"
+DISPLAY_NAME = ("Auto (DeepSeek router)" if opencode_decision.decision_provider() == "opencode-go"
+                else "Auto (Jev)")
 VERSION = "1.6"
 
 API = "https://api.typesafe.ai/v1/systemone"
@@ -239,6 +247,8 @@ ENVELOPE_SCAN_CHARS = 200_000
 
 def load_key():
     """Read the configured Jev key without copying it into the router config."""
+    if opencode_decision.decision_provider() == "opencode-go":
+        return opencode_decision.load_key()
     override = os.environ.get("JEV_ENV_FILE", "").strip()
     paths = (override,)
     seen = set()
@@ -285,9 +295,10 @@ def warn_if_key_missing():
     """Make intentional fail-open routing visible without exposing key material."""
     if load_key():
         return False
+    provider = "OpenCode Go" if opencode_decision.decision_provider() == "opencode-go" else "Jev"
     print(
-        "[jev-router] warning: no Jev API key is configured; "
-        "Jev decisions will fail open to astra",
+        f"[jev-router] warning: no {provider} API key is configured; "
+        "routing decisions will fail open to astra",
         file=sys.stderr,
         flush=True,
     )
@@ -598,7 +609,7 @@ def fallback_candidates(native_model, payload):
 
 def call_jev(key, state, questions=None, timeout=4.0):
     body = json.dumps({"model": MODEL, "state": state,
-                       "questions": QUESTIONS if questions is None else questions}).encode()
+                       "questions": questions_for_state(state) if questions is None else questions}).encode()
     req = urllib.request.Request(
         API,
         data=body,
@@ -609,9 +620,16 @@ def call_jev(key, state, questions=None, timeout=4.0):
         return json.loads(resp.read().decode("utf-8"))
 
 
-def call_jev_routed(key, state, questions=None, timeout=4.0):
-    """One System One call, on the direct TypeSafe API."""
-    return call_jev(key, state, questions, timeout=timeout)
+def call_jev_routed(key, state, questions=None, timeout=None, session_id=None):
+    """Use the selected classifier; execution still uses the native Codex ladder."""
+    if opencode_decision.decision_provider() == "opencode-go":
+        if questions is not None:
+            raise ValueError("OpenCode Go supports routing decisions only")
+        return opencode_decision.call(
+            key, state, session_id,
+            timeout=opencode_decision.TIMEOUT if timeout is None else timeout,
+        )
+    return call_jev(key, state, questions, timeout=4.0 if timeout is None else timeout)
 
 
 def validate_ask(body):
@@ -933,6 +951,7 @@ def _debug_shape(payload):
 
 ROUTE_GLYPHS = {
     "gpt-6-luna": ("luna", "⚡"),        # lightweight tier, adaptive thinking
+    "gpt-6.1-terra": ("terra", "🌍"),    # visual work, computer use and scoped fixes
     "gpt-6.1-sol": ("sol", "🧠"),        # current general reasoning workhorse
     "gpt-6-sol": ("sol", "🧠"),          # general reasoning workhorse
     "gpt-5.6-luna": ("luna", "⚡"),      # cheap tier, adaptive thinking
@@ -2065,12 +2084,32 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _route_only(self):
+        body = self._body(route_endpoint.MAX_BYTES)
+        if body is None:
+            return
+        try:
+            route_endpoint.validate(body)
+        except ValueError as error:
+            return self._json(400, {"error": {"message": str(error)}})
+        try:
+            result = route_endpoint.classify(
+                body, load_key=load_key, call_judge=call_jev_routed,
+                source=opencode_decision.decision_source,
+                make_dossier=decision_dossier,
+            )
+        except Exception:
+            return self._json(502, {"error": {"message": "routing judge unavailable"}})
+        return self._json(200, result)
+
     def _ask(self):
         """Typed pass-through to System One for local callers (:4319, loopback only).
 
         No policy, no logging of the caller's state: the body is validated,
         forwarded as-is and only the typed answers come back.
         """
+        if opencode_decision.decision_provider() != "typesafe":
+            return self._json(501, {"error": {"message": "Generic /ask requires TypeSafe; OpenCode Go is routing-only"}})
         body = self._body(ASK_MAX_BYTES)
         if body is None:
             return
@@ -2108,6 +2147,11 @@ class Handler(BaseHTTPRequestHandler):
         elif path in ("/health", ""):
             self._json(200, {"ok": True, "service": "jev-router", "version": VERSION,
                              "policy_version": POLICY_VERSION,
+                             "execution_policy": (EXECUTION_POLICY_VERSION
+                                                  if os.environ.get("JEV_EXECUTION_POLICY", "roles") != "adaptive"
+                                                  else "adaptive"),
+                             "execution_roles": ROLE_MODELS,
+                             "decision_provider": opencode_decision.decision_provider(),
                              "auth_configured": bool(local_secret())})
         else:
             self._json(404, {"error": {"message": "not found"}})
@@ -2136,6 +2180,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def _post(self):
         path = self.path.split("?", 1)[0]
+        if path.rstrip("/") == "/v1/route":
+            return self._route_only()
         if path.rstrip("/") in ASK_PATHS:
             return self._ask()
         if path.rstrip("/") not in ("/responses", "/v1/responses"):
@@ -2143,6 +2189,13 @@ class Handler(BaseHTTPRequestHandler):
         payload = self._body(RESPONSE_MAX_BYTES)
         if payload is None:
             return
+        try:
+            role = execution_role(payload)
+        except ValueError:
+            return self._json(400, {"error": {"message": "unsupported execution role"}})
+        fixed_model = ROLE_MODELS.get(role)
+        minimum_effort = effort_floor(payload, role)
+        prepare_role(payload, role)
         # Our own answer signatures never travel back upstream (see
         # strip_signatures): the model must not read its own route tag.
         stripped = strip_signatures(payload)
@@ -2169,12 +2222,19 @@ class Handler(BaseHTTPRequestHandler):
         jev_usage = None
         decision_source = None
         scope = cache_scope(payload, task)
+        if role:
+            scope = hashlib.sha256((scope + ":" + role).encode()).hexdigest()[:16]
         affinity = cache_affinity(scope, payload, signature=canonical_signature)
         leased = route_lease(scope, payload, step)
         if os.path.exists(OFF_PATH):
-            model, effort, speed, gate = ASTRA, None, "default", "off"
+            model, effort, speed, gate = fixed_model or ASTRA, "medium" if fixed_model else None, "default", "off"
         else:
-            key = load_key()
+            key_error = None
+            try:
+                key = load_key() if leased is None else None
+            except Exception as exc:
+                key = None
+                key_error = type(exc).__name__
             if leased is not None:
                 decision = leased
                 tier, depth, conf = (
@@ -2186,12 +2246,16 @@ class Handler(BaseHTTPRequestHandler):
             elif key and (task or step.get("digest") or signals.get("has_image")):
                 jt0 = time.time()
                 state = jev_state(task, prev_assistant, signals, step, affinity)
+                if fixed_model:
+                    state["execution_model"] = fixed_model
+                    state["execution_role"] = role
                 failure_evidence = route_failure_evidence(scope, payload)
                 if failure_evidence:
                     state["recent_route_failure"] = failure_evidence
                 try:
-                    result = call_jev_routed(key, state)
-                    decision = decision_from_answers(result.get("answers"))
+                    result = call_jev_routed(key, state, session_id=scope)
+                    decision = (execution_decision(result.get("answers"), fixed_model)
+                                if fixed_model else decision_from_answers(result.get("answers")))
                     raw_usage = result.get("usage") or {}
                     if not isinstance(raw_usage, dict):
                         raw_usage = {}
@@ -2202,13 +2266,14 @@ class Handler(BaseHTTPRequestHandler):
                                          decision["confidence"])
                     model, effort, speed, _ = route(tier, depth)
                     gate = decision["gate"]
-                    decision_source = "jev"
+                    decision_source = opencode_decision.decision_source()
                 except Exception as exc:
-                    model, effort, speed, gate = ASTRA, "medium", "default", f"jev_error:{type(exc).__name__}"
+                    model, effort, speed, gate = fixed_model or ASTRA, "medium", "default", f"jev_error:{type(exc).__name__}"
                     decision_source = "technical_fallback"
                 jev_ms = int((time.time() - jt0) * 1000)
             else:
-                model, effort, speed, gate = ASTRA, "medium", "default", "no_key_or_task"
+                gate = f"key_unavailable:{key_error}" if key_error else "no_key_or_task"
+                model, effort, speed = fixed_model or ASTRA, "medium", "default"
                 decision_source = "technical_fallback"
 
         shadow_enabled = os.path.exists(SHADOW_PATH)
@@ -2216,7 +2281,12 @@ class Handler(BaseHTTPRequestHandler):
         would = None
         if shadow_enabled:
             would = {"model": model, "effort": effort, "speed": speed, "gate": gate}
-            model, effort, speed, gate = ASTRA, None, "default", "shadow(astra)"
+            model, effort, speed, gate = (fixed_model or ASTRA,
+                                         "medium" if fixed_model else None,
+                                         "default", "shadow" if fixed_model else "shadow(astra)")
+
+        if role == "main":
+            effort = constrain_effort(effort, minimum_effort)
 
         # ONLY while native usage is exhausted (manual flag or observed quota
         # failure), replace the OpenAI ladder with locally discovered configured
@@ -2226,7 +2296,7 @@ class Handler(BaseHTTPRequestHandler):
         fallback_plan = []
         no_fallback = False
         if dry_reason and model in TIERS:
-            fallback_plan = fallback_candidates(native_model, payload)
+            fallback_plan = [] if fixed_model else fallback_candidates(native_model, payload)
             if fallback_plan:
                 model = fallback_plan.pop(0)
                 effort = tandem_effort(effort, native_model)
@@ -2281,7 +2351,7 @@ class Handler(BaseHTTPRequestHandler):
         else:
             status, out_kind, ctype, quota_hit, unwritten, resets_at = self._forward(
                 payload, out_path, stream_requested, debug, marker, model, signature, effort,
-                exact_route=bool(dry_reason and model not in TIERS))
+                exact_route=bool(fixed_model or (dry_reason and model not in TIERS)))
         retried = False
         fallback = None
         if quota_hit and not dry_reason:
@@ -2289,7 +2359,7 @@ class Handler(BaseHTTPRequestHandler):
             # retry this exact canonical call before anything reaches the client.
             mark_native_dry("quota", resets_at=resets_at)
             dry_reason = "quota"
-            fallback_plan = fallback_candidates(native_model, payload)
+            fallback_plan = [] if fixed_model else fallback_candidates(native_model, payload)
             if fallback_plan:
                 model = fallback_plan.pop(0)
                 effort = tandem_effort(effort, native_model)
@@ -2325,7 +2395,9 @@ class Handler(BaseHTTPRequestHandler):
                 and self._attempts[-1].get("completion") == "empty_completion"):
             # Native-only technical recovery, once and before any bytes escape.
             # Do not re-enter native service after a quota/provider fallback.
-            recovery_model, recovery_effort = ASTRA, "medium"
+            recovery_model, recovery_effort = fixed_model or ASTRA, "medium"
+            if role == "main":
+                recovery_effort = constrain_effort(recovery_effort, minimum_effort)
             if (model, effort) != (recovery_model, recovery_effort):
                 model, effort = recovery_model, recovery_effort
                 apply_route(model, effort)
@@ -2334,7 +2406,8 @@ class Handler(BaseHTTPRequestHandler):
                 retried = True
                 gate = "empty_completion_retry"
                 status, out_kind, ctype, quota_hit, unwritten, _resets_at = self._forward(
-                    payload, out_path, stream_requested, debug, marker, model, signature, effort)
+                    payload, out_path, stream_requested, debug, marker, model, signature, effort,
+                    exact_route=bool(fixed_model))
         if unwritten is not None:
             # Every model that could have served this turn refused it, and the
             # refusal was held back only because another attempt might have
@@ -2378,6 +2451,9 @@ class Handler(BaseHTTPRequestHandler):
         log_line({
             "at": time.strftime("%Y-%m-%dT%H:%M:%S"),
             "policy_version": POLICY_VERSION,
+            "execution_policy": EXECUTION_POLICY_VERSION if role else "adaptive",
+            "execution_role": role,
+            "effort_floor": minimum_effort if role == "main" else None,
             "route_probabilities": decision["probabilities"] if decision else None,
             "chosen_probability": decision["chosen_probability"] if decision else None,
             "astra_policy": decision["astra_policy"] if decision else None,
@@ -2385,6 +2461,7 @@ class Handler(BaseHTTPRequestHandler):
             "jev_usage": jev_usage,
             "attempts": self._attempts,
             "decision_source": decision_source,
+            "decision_provider": opencode_decision.decision_provider(),
             "lease": decision.get("lease") if decision else None,
             "lease_hit": decision_source == "lease",
             "gate": gate,

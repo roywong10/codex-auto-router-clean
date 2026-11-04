@@ -6,8 +6,10 @@ import secrets
 from pathlib import Path
 
 from healthcheck import healthy
+from opencode_decision import decision_provider, decision_source
 from local_runtime import STATE
 from routing_policy import EFFORTS, POLICY_VERSION, TIERS
+from execution_roles import EXECUTION_POLICY_VERSION, ROLE_MODELS, execution_role
 
 
 def main():
@@ -16,8 +18,13 @@ def main():
     health = http.client.HTTPConnection("127.0.0.1", 4319, timeout=5)
     try:
         health.request("GET", "/health")
-        if json.loads(health.getresponse().read()).get("policy_version") != POLICY_VERSION:
+        running = json.loads(health.getresponse().read())
+        if running.get("policy_version") != POLICY_VERSION:
             raise RuntimeError("running policy differs from checkout; reload required")
+        if running.get("decision_provider", "typesafe") != decision_provider():
+            raise RuntimeError("running classifier differs from configuration; reload required")
+        if execution_role({"model": "auto"}) and running.get("execution_policy") != EXECUTION_POLICY_VERSION:
+            raise RuntimeError("running execution policy differs from checkout; reload required")
     finally:
         health.close()
     secret = (Path(STATE) / "caller-secret").read_text().strip()
@@ -27,6 +34,8 @@ def main():
     response_model = None
     smoke_key = "jev-smoke-" + secrets.token_hex(16)
     smoke_scope = hashlib.sha256(("prompt:" + smoke_key).encode()).hexdigest()[:16]
+    if execution_role({"model": "auto"}):
+        smoke_scope = hashlib.sha256((smoke_scope + ":main").encode()).hexdigest()[:16]
     try:
         body = {"model": "jev/auto", "input": [
             {"role": "user", "content": [{"type": "input_text", "text": "Reply only OK."}]}
@@ -62,21 +71,23 @@ def main():
                     route = entry
         if (
             not isinstance(route, dict)
-            or route.get("decision_source") != "jev"
+            or route.get("decision_source") != decision_source()
             or route.get("gate") not in ("apply", "astra_policy")
             or route.get("status") != 200
             or route.get("completion_status") != "response.completed"
         ):
-            raise RuntimeError("the request completed without a verified Jev decision; check the key and route")
+            raise RuntimeError("the request completed without a verified classifier decision; check the key and route")
         if route.get("model") not in TIERS or route.get("effort") not in EFFORTS:
-            raise RuntimeError("the Jev decision did not report a supported model and effort")
+            raise RuntimeError("the classifier decision did not report a supported model and effort")
+        if execution_role({"model": "auto"}) and route.get("model") != ROLE_MODELS["main"]:
+            raise RuntimeError("main execution did not remain on Sol")
         if response_model != route["model"]:
-            raise RuntimeError("the upstream response model did not match the Jev route")
+            raise RuntimeError("the upstream response model did not match the selected route")
         expected_label = f"{route['model']} · reasoning: {route['effort']}"
         if expected_label not in "".join(output_text)[:240]:
             raise RuntimeError("the streamed assistant text did not show its routed model and effort")
         result.update({key: route.get(key) for key in (
-            "model", "effort", "effort_transport", "gate", "decision_source"
+            "model", "effort", "effort_transport", "gate", "decision_source", "decision_provider"
         )})
         result["response_model"] = response_model
         result["visible_model_effort"] = "confirmed"

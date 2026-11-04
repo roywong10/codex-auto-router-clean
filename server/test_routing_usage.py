@@ -7,6 +7,21 @@ import report_routing as report
 
 
 class Usage(unittest.TestCase):
+    def test_current_terra_is_native_and_keeps_distinct_rates_and_unknown_credits(self):
+        model = "gpt-6.1-terra"
+        entries = [{"attempts": [{"model": model, "speed": "default", "usage": {
+            "input_tokens": 1000, "cached_input_tokens": 800, "output_tokens": 10,
+        }}]}]
+        usage = report.measured_usage(entries)
+        self.assertEqual(usage["native_attempts"], 1)
+        self.assertEqual(usage["unknown_attempts"], 1)
+        self.assertEqual(set(report.prompt_cache_usage(entries)["by_model"]), {model})
+        self.assertEqual(report.turn_cost(model), 1.0)
+        self.assertEqual(report.turn_cost(model, speed="fast"), 2.0)
+        self.assertEqual(report.turn_cost(model, mix={
+            "input": 1_000_000, "cached": 1_000_000, "output": 0,
+        }), 0.05)
+
     def test_sol_upgrade_keeps_both_models_in_native_statistics_and_prices(self):
         entries = [{"attempts": [
             {"model": model, "speed": "default", "usage": {

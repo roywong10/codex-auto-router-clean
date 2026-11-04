@@ -469,8 +469,6 @@ const routedTransportActive = codexTarget
 let idleInstall = false;
 try {
   selection = providerSelectionStatus();
-  idleInstall =
-    selection.explicit && selection.providers.length === 0 && discoveryDisabled();
   requiredRoutedModels = selectedConfiguredListedModels();
   catalogRoutedModels = routedTransportActive ? requiredRoutedModels : [];
   requiredModels = new Set(catalogRoutedModels.map((model) => model.slug));
@@ -482,6 +480,7 @@ try {
     .filter((provider) => provider.generic === true && genericProviderConfigured(provider.id))
     .map((provider) => provider.id);
   const enabledNames = [...selection.providers, ...enabledGenericIds];
+  idleInstall = selection.explicit && enabledNames.length === 0 && discoveryDisabled();
   add(
     enabledNames.length ? "ok" : idleInstall ? "warn" : "fail",
     "Enabled providers",

@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { userModelEntry } from "../src/user-models.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const callerSecret = "doctor-idle-caller-capability-with-sufficient-length";
@@ -180,3 +181,41 @@ test(
     }
   },
 );
+
+
+test("a configured generic-only route is not an idle install", { timeout: 60_000 }, () => {
+  const { codexHome, stateDir, env } = stageIdleHome();
+  env.CODEX_ROUTER_NO_DISCOVERY = "1";
+  env.MODEL_ROUTER_GENERIC_PROVIDERS = path.join(stateDir, "generic-providers.json");
+  env.MODEL_ROUTER_USER_MODELS = path.join(stateDir, "user-models.json");
+  try {
+    writeFileSync(path.join(stateDir, "generic-providers.json"), JSON.stringify({
+      version: 1,
+      providers: [{ id: "fixture", displayName: "Fixture", enabled: true,
+        baseUrl: "http://127.0.0.1:46194/v1", adapter: "openai-chat",
+        headers: {}, allowPrivate: true }],
+    }), { mode: 0o600 });
+    writeFileSync(path.join(stateDir, "user-models.json"), JSON.stringify({
+      version: 1,
+      models: [userModelEntry({ providerId: "fixture", upstreamId: "auto", priority: 100 })],
+    }), { mode: 0o600 });
+    for (const [script, args] of [["config-manager.mjs", ["enable"]],
+      ["catalog.mjs", ["--refresh-native"]], ["litellm-config.mjs", []]]) {
+      const result = child(script, args, env);
+      assert.equal(result.status, 0, result.stderr);
+    }
+    const report = JSON.parse(child("doctor.mjs", ["--json"], env).stdout);
+    const enabled = report.checks.find((check) => check.name === "Enabled providers");
+    assert.equal(enabled.detail, "fixture");
+    const catalog = report.checks.find((check) => check.name === "Merged catalog");
+    assert.equal(catalog.status, "ok", JSON.stringify({
+      check: catalog,
+      slugs: JSON.parse(readFileSync(path.join(stateDir, "merged-models.json"), "utf8")).models.map((model) => model.slug),
+      gateway: report.checks.find((check) => check.name === "Catalog matches gateway routes"),
+      mode: report.checks.find((check) => check.name === "Codex routing config"),
+    }));
+    assert.equal(catalog.detail, "1 routed models");
+  } finally {
+    rmSync(codexHome, { recursive: true, force: true });
+  }
+});

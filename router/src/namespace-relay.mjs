@@ -657,6 +657,12 @@ export function injectSessionModelForSpawnCalls(item, model, effortForModel) {
     return item;
   }
   if (typeof args !== "object" || args === null || Array.isArray(args)) return item;
+  // These operator-published roles must retain the model in their agent file.
+  if (model === "jev/auto" && isSubagentSpawnCall(item) &&
+      /^router_role_(explore|execute|mechanical|visual|plan|review)$/.test(args.agent_type || "")) {
+    const { model: ignoredModel, reasoning_effort: ignoredEffort, ...roleArgs } = args;
+    return { ...item, arguments: JSON.stringify(roleArgs) };
+  }
   if (args.model !== undefined && !isSubagentSpawnCall(item)) return item;
   if (args.target?.type === "chatgptWorkCloud") return item;
   if (typeof args.model === "string" && args.model) {

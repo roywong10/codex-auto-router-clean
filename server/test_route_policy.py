@@ -19,9 +19,9 @@ from routing_policy import (
 class SplitPolicy(unittest.TestCase):
     def test_the_repeated_contract_stays_compact_and_explicit(self):
         encoded = json.dumps(QUESTIONS, separators=(",", ":"))
-        self.assertLessEqual(len(encoded), 3200)
+        self.assertLessEqual(len(encoded), 3600)
         self.assertNotIn('"luna":"luna"', encoded)
-        self.assertEqual(POLICY_VERSION, "split-v17-gpt6-luna-sol-astra")
+        self.assertEqual(POLICY_VERSION, "split-v18-gpt6-luna-terra-sol-astra")
         self.assertIn("Intermittent or concurrency failures", encoded)
         self.assertIn("independent final code review", encoded)
         self.assertIn("routine in-progress quality checkpoints", encoded)

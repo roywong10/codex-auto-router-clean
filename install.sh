@@ -77,6 +77,18 @@ python=${JEV_PYTHON:-$(command -v python3 || true)}
 # Preserve a configured key-file path from this service without displaying it.
 service_plist="$HOME/Library/LaunchAgents/${JEV_ROUTER_LABEL:-com.thibaultsaintjean.jev-router}.plist"
 if [ -x /usr/libexec/PlistBuddy ] && [ -f "$service_plist" ]; then
+  if [ -z "${JEV_DECISION_PROVIDER:-}" ]; then
+    saved_provider=$(/usr/libexec/PlistBuddy -c 'Print :EnvironmentVariables:JEV_DECISION_PROVIDER' "$service_plist" 2>/dev/null || true)
+    [ -z "$saved_provider" ] || { JEV_DECISION_PROVIDER=$saved_provider; export JEV_DECISION_PROVIDER; }
+  fi
+  if [ -z "${OPENCODE_GO_KEYCHAIN_SERVICE:-}" ]; then
+    saved_go_service=$(/usr/libexec/PlistBuddy -c 'Print :EnvironmentVariables:OPENCODE_GO_KEYCHAIN_SERVICE' "$service_plist" 2>/dev/null || true)
+    [ -z "$saved_go_service" ] || { OPENCODE_GO_KEYCHAIN_SERVICE=$saved_go_service; export OPENCODE_GO_KEYCHAIN_SERVICE; }
+  fi
+  if [ -z "${OPENCODE_GO_KEYCHAIN_ACCOUNT:-}" ]; then
+    saved_go_account=$(/usr/libexec/PlistBuddy -c 'Print :EnvironmentVariables:OPENCODE_GO_KEYCHAIN_ACCOUNT' "$service_plist" 2>/dev/null || true)
+    [ -z "$saved_go_account" ] || { OPENCODE_GO_KEYCHAIN_ACCOUNT=$saved_go_account; export OPENCODE_GO_KEYCHAIN_ACCOUNT; }
+  fi
   if [ -z "${JEV_API_KEY_FILE:-}" ]; then
     saved_key_file=$(/usr/libexec/PlistBuddy -c 'Print :EnvironmentVariables:JEV_API_KEY_FILE' "$service_plist" 2>/dev/null || true)
     [ -z "$saved_key_file" ] || { JEV_API_KEY_FILE=$saved_key_file; export JEV_API_KEY_FILE; }
@@ -91,8 +103,8 @@ fi
 if ! env -u JEV_API_KEY -u TYPESAFE_API_KEY PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$repo_dir/server" \
   python3 -c 'from jev_server import load_key; raise SystemExit(0 if load_key() else 1)' \
   >/dev/null 2>&1; then
-  echo "No Jev API key was found in JEV_ENV_FILE, JEV_API_KEY_FILE, ~/.hermes/.env, or ~/.jev.env." >&2
-  echo "Store your own key in a protected local file, set its file-path variable, then retry." >&2
+  echo "No classifier key was found. OpenCode Go needs OPENCODE_GO_KEYCHAIN_SERVICE and OPENCODE_GO_KEYCHAIN_ACCOUNT; TypeSafe uses JEV_API_KEY_FILE or JEV_ENV_FILE." >&2
+  echo "Check the selected provider and its protected key source, then retry." >&2
   exit 1
 fi
 
@@ -100,7 +112,7 @@ if [ ! -r /dev/tty ]; then
   echo "Run the full install from an interactive Terminal to grant ChatGPT session sharing." >&2
   exit 1
 fi
-printf 'Allow the local router to read Codex auth.json and relay your signed-in ChatGPT session? The token is not sent to Jev. [y/N] '
+printf 'Allow the local router to read Codex auth.json and relay your signed-in ChatGPT session? The token is not sent to the classifier. [y/N] '
 IFS= read -r consent </dev/tty || consent=
 case $consent in
   y|Y|yes|YES) ;;
@@ -137,7 +149,10 @@ node "$repo_dir/server/configure-auth.mjs"
 JEV_PYTHON=$(command -v python3) CODEX_HOME=$codex_home CODEX_ROUTER_STATE_DIR=$state_dir \
   bash "$repo_dir/server/install-service.sh"
 
-printf 'Run one live Jev route check now? It sends one request using your Jev and ChatGPT accounts and may use their quota. [y/N] '
+# Load the newly configured jev/auto route before accepting smoke traffic.
+"$router_dir/bin/control" service restart
+
+printf 'Run one live route check now? It uses your selected classifier and ChatGPT accounts and may use their quota. [y/N] '
 IFS= read -r smoke_consent </dev/tty || smoke_consent=
 case $smoke_consent in
   y|Y|yes|YES) "$python" "$repo_dir/server/smoke.py" ;;
@@ -145,4 +160,8 @@ case $smoke_consent in
 esac
 
 printf '\nJev Codex Router is installed from %s.\n' "$repo_dir"
-printf 'Fully quit and reopen Codex, then select "Auto (Jev)".\n'
+if [ "${JEV_DECISION_PROVIDER:-typesafe}" = opencode-go ]; then
+  printf 'Fully quit and reopen Codex, then select "Auto (DeepSeek router)".\n'
+else
+  printf 'Fully quit and reopen Codex, then select "Auto (Jev)".\n'
+fi

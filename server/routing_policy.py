@@ -1,17 +1,15 @@
 """Compact Jev contract: model, effort, lease and mandatory-frontier policy."""
 import math
 
-POLICY_VERSION = "split-v17-gpt6-luna-sol-astra"
-LUNA, SOL, ASTRA = "gpt-6-luna", "gpt-6.1-sol", "gpt-6-astra"
-# Compatibility alias: the retired Terra tier resolves to the current Sol.
-TERRA = SOL
-TIERS = (LUNA, SOL, ASTRA)
+POLICY_VERSION = "split-v18-gpt6-luna-terra-sol-astra"
+LUNA, TERRA, SOL, ASTRA = "gpt-6-luna", "gpt-6.1-terra", "gpt-6.1-sol", "gpt-6-astra"
+TIERS = (LUNA, TERRA, SOL, ASTRA)
 PREVIOUS_SOL = "gpt-6-sol"
 NATIVE_MODELS = (*TIERS, PREVIOUS_SOL)
 EFFORTS = ["low", "medium", "high", "xhigh", "max"]
 LEASES = ("one_call", "tool_chain", "user_turn")
 
-MODEL_IDS = {"luna": LUNA, "sol": SOL, "astra": ASTRA}
+MODEL_IDS = {"luna": LUNA, "terra": TERRA, "sol": SOL, "astra": ASTRA}
 ASTRA_POLICY = {
     "astra": (
         "Remaining work is project architecture, independent final code review, or "
@@ -31,6 +29,12 @@ MODEL_PROFILES = {
         "several files, known-pattern bug fixes, simple checks/tests, provided-information "
         "explanations, short summaries or formatting. New diagnosis or unresolved "
         "trade-offs need Sol; clear acceptance is not a known fix."
+    ),
+    "terra": (
+        "GPT-6.1 Terra: visual reasoning, precise browser/desktop workflows, clear "
+        "natural writing and scoped code fixes with defined inputs and verification. "
+        "Prefer over Sol when sufficient; plain mechanical edits stay with Luna. "
+        "Complex coding or unresolved broad diagnosis needs Sol; mandatory reviews need Astra."
     ),
     "sol": (
         "GPT-6.1 Sol: near-Astra capability for complex coding, refactors, multi-step tool work, "

@@ -101,6 +101,9 @@ class Edge(BaseHTTPRequestHandler):
 
 class TandemHandoff(unittest.TestCase):
     def setUp(self):
+        self.policy_patch = mock.patch.dict(os.environ, {"JEV_EXECUTION_POLICY": "adaptive"})
+        self.policy_patch.start()
+        self.addCleanup(self.policy_patch.stop)
         self.enterContext(mock.patch.object(jev, "local_secret", return_value="fixture-local"))
         Edge.attempts = []
         Edge.payloads = []

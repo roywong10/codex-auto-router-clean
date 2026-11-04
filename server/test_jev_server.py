@@ -441,7 +441,8 @@ class TandemRetry(unittest.TestCase):
 class Policy(unittest.TestCase):
     def test_current_sol_has_an_exact_visible_model_and_supported_effort(self):
         self.assertEqual(jev.SOL, "gpt-6.1-sol")
-        self.assertEqual(jev.TERRA, jev.SOL)
+        self.assertEqual(jev.TERRA, "gpt-6.1-terra")
+        self.assertNotEqual(jev.TERRA, jev.SOL)
         for effort in ("low", "medium", "high", "xhigh", "max"):
             self.assertEqual(jev.route(jev.SOL, effort)[:2], ("gpt-6.1-sol", effort))
             self.assertIn("🧠 gpt-6.1-sol", jev.route_marker(jev.SOL, effort))

@@ -86,6 +86,46 @@ const STRICT_GENERIC_PROVIDER = {
 
 const TURN_BODY = { model: PRIMARY.slug, input: "hello", stream: true };
 
+test("fixed Jev main and role routes never use outer quota failover or cooldown redirects", async () => {
+  const seen = [];
+  const upstream = await gateway(async (request, response) => {
+    const body = await bodyJson(request);
+    seen.push(body.model);
+    response.writeHead(429, { "Content-Type": "application/json" });
+    response.end(QUOTA_BODY);
+  });
+  const models = ["auto", "role-visual"].map((name) => ({
+    ...GENERIC_SEARCH_INCOMPATIBLE,
+    slug: `jev/${name}`, provider: "jev", gatewayModel: `jev-${name}`,
+    upstreamModel: name === "auto" ? "auto" : "role/visual",
+  }));
+  const port = await openPort();
+  const child = run(routerEnv(upstream.port, port), {
+    userModels: models,
+    genericProviders: [{
+      id: "jev", displayName: "Jev", baseUrl: "http://127.0.0.1:4319/v1",
+      adapter: "openai-responses", headers: {}, allowPrivate: true, enabled: true,
+    }],
+  });
+  try {
+    await waitFor(`${callerBaseUrl(port, CALLER_KEY)}/models`, child);
+    for (const model of models) {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const response = await fetch(`${callerBaseUrl(port, CALLER_KEY)}/responses`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model: model.slug, input: "bounded task", stream: false }),
+        });
+        assert.equal(response.status, 429, await response.text());
+      }
+    }
+    assert.deepEqual(seen, ["jev-auto", "jev-auto", "jev-role-visual", "jev-role-visual"]);
+  } finally {
+    child.kill("SIGTERM");
+    await new Promise((resolve) => child.once("exit", resolve));
+    await new Promise((resolve) => upstream.server.close(resolve));
+  }
+});
+
 // Marker text is what proves whose bytes reached the client.
 function contentSse(marker) {
   return [

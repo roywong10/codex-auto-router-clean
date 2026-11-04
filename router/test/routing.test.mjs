@@ -9456,6 +9456,21 @@ test("jev/auto receives the complete canonical replay for its executing model", 
       autoCompact: 219640,
       inputModalities: ["text", "image"],
       compHash: "jev-auto-test-v1",
+    }, {
+      slug: "jev/role-visual",
+      gatewayModel: "jev-role-visual",
+      upstreamModel: "role/visual",
+      provider: "jev",
+      listed: true,
+      displayName: "Visual role",
+      description: "Test fixed role.",
+      priority: 90,
+      defaultEffort: "medium",
+      reasoningLevels: [{ effort: "medium", description: "Balanced reasoning" }],
+      contextWindow: 258400,
+      autoCompact: 219640,
+      inputModalities: ["text", "image"],
+      compHash: "jev-role-visual-test-v1",
     }],
   })}\n`);
   const routerPort = await openPort();
@@ -9506,6 +9521,23 @@ test("jev/auto receives the complete canonical replay for its executing model", 
     assert.equal(gatewayBodies[0].model, "jev-auto");
     assert.equal(gatewayBodies[0].prompt_cache_key, promptCacheKey);
     assert.deepEqual(gatewayBodies[0].input, input);
+
+    const roleResponse = await fetch(`${routerBase(routerPort)}/responses`, {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer CODEX_CALLER_SECRET",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "jev/role-visual",
+        stream: false,
+        prompt_cache_key: promptCacheKey,
+        input,
+      }),
+    });
+    assert.equal(roleResponse.status, 200, await roleResponse.text());
+    assert.equal(gatewayBodies[1].model, "jev-role-visual");
+    assert.deepEqual(gatewayBodies[1].input, input);
 
     const [event] = await waitForUsageEvents(stateDir, 1, router);
     assert.equal(event.toolResultsAged ?? 0, 0);
