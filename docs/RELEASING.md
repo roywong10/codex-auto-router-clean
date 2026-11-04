@@ -12,8 +12,11 @@ changelog and upstream release artifacts are not releases of this project.
 - Review dependency/lockfile changes, licenses and audit output.
 - Review context preservation, retry boundaries, privacy, and migration impact
   for any affected component.
-- On macOS, separately qualify the full root installer and update path using a
-  separate OS user or VM. Record paths and rollback behavior without credentials.
+- For an Early Access source publication, disclose that full macOS installation,
+  update, and uninstall have not been qualified in a fresh OS user or VM.
+  This known limitation does not block source publication. Before claiming a
+  qualified installation workflow or stable release, complete that acceptance
+  separately and record paths and rollback behavior without credentials.
 - If live routing changed, perform the explicitly authorized live smoke check.
   Record policy and terminal status without prompts or credentials. Unit tests
   alone are not proof of deployed runtime health.

@@ -67,7 +67,8 @@ select an existing checkout.
 Temporary HOME, CODEX_HOME, state directories, labels, or a stub launchctl do
 not isolate the launchd user domain. Full install/update/uninstall acceptance
 requires a separate OS user or VM. Read [docs/RELEASING.md](docs/RELEASING.md)
-before testing installation.
+before testing installation. This qualification remains outstanding and is a
+disclosed Early Access limitation, not a blocker for publishing the source.
 
 ## Verification and Operations
 
@@ -102,4 +103,6 @@ Public documentation and contribution conventions are English. Never publish
 personal setup references, private prompt captures, or unreviewed screenshots.
 Audit history and commit metadata as well as HEAD. Do not rewrite shared history,
 commit, push, or change repository visibility without the required explicit
-approval. An Early Access label does not waive the release acceptance gates.
+approval. Early Access source publication may disclose unqualified fresh-macOS
+installation; it must not claim that the full workflow was verified. Other
+release acceptance gates remain in effect.

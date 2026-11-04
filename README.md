@@ -3,6 +3,9 @@
 **Early Access.** Interfaces and installation workflows may change. The complete
 stack currently targets macOS; the embedded router's cross-platform tests do not
 establish Linux or Windows installation support. Keep configuration backups.
+The complete install, update, and uninstall workflow has not yet been validated
+in a fresh macOS user account or VM. Treat this as experimental software, not a
+production-qualified installer.
 
 A local Codex router with a stable main model, specialist role agents, and
 adaptive reasoning effort. Pick the execution model; let a classifier adjust
@@ -55,12 +58,21 @@ Review it before running. Contributor tests do not require installation.
 
 ## Installation
 
-Clone this repository and enter the checkout:
+1. Install the prerequisites above and sign in to Codex.
+2. Clone this repository.
+3. Choose **one** classifier setup below, then run its installation commands.
+4. Reopen Codex and complete the verification below.
+
+Clone and enter the checkout (GitHub CLI is not required):
 
 ```sh
-gh repo clone roywong10/codex-auto-router-clean
+git clone https://github.com/roywong10/codex-auto-router-clean.git
 cd codex-auto-router-clean
 ```
+
+The role configuration is optional. You can start with the defaults; your account
+must have access to those models, or you must configure accessible supported
+models before installation. This project does not grant model access.
 
 ### OpenCode Go
 
@@ -113,6 +125,18 @@ bin/jev-codex-router smoke
 Smoke must show a completed response, matching selected and response models,
 effort, and a fresh `opencode-go` or `jev` classifier decision. A picker entry,
 health response, or technical fallback alone is not end-to-end verification.
+
+### If Setup Does Not Work
+
+- If the picker is missing, fully quit and reopen Codex, then run
+  `bin/jev-codex-router doctor` from the checkout.
+- If authentication fails, verify the chosen classifier's protected key-file
+  path or Keychain service/account references. Never paste a key into an issue.
+- If a role's model is unavailable, choose an accessible supported model in the
+  configuration below. Fixed roles do not silently switch models.
+- When reporting a problem, include your macOS, Node.js, Python, and Codex CLI
+  versions, the source commit, and a redacted error summary. Do not attach raw
+  logs, conversations, credential files, or full configuration.
 
 ## Role Model Configuration
 
