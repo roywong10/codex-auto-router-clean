@@ -27,6 +27,13 @@ const MARKER = "SIGNED_OUT_LOGIN_FREE_OK";
 
 function cleanCredentialEnvironment(extra = {}) {
   const env = { ...process.env, ...extra };
+  // A host proxy must not intercept this synthetic loopback server.
+  for (const name of ["NO_PROXY", "no_proxy"]) {
+    env[name] = [...new Set([
+      ...(env[name] || "").split(","),
+      "localhost", "127.0.0.1", "::1",
+    ])].filter(Boolean).join(",");
+  }
   for (const name of [
     "OPENAI_API_KEY",
     "CODEX_API_KEY",

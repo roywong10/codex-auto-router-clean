@@ -1,18 +1,18 @@
 {
   "name": "jev-codex-router",
   "version": "0.2.1",
-  "description": "Install and operate Auto (Jev), designed for Codex GPT-6 Luna, GPT-6.1 Sol, and GPT-6 Astra.",
+  "description": "Install and operate Codex Auto Router (Early Access), with configurable role models and adaptive effort.",
   "author": {
-    "name": "ericwanderlust"
+    "name": "roywong10"
   },
   "skills": "./skills/",
   "interface": {
-    "displayName": "Auto (Jev) for Codex",
-    "shortDescription": "Set up Auto (Jev) for Codex GPT-6 models.",
-    "longDescription": "Designed for Codex GPT-6 Luna, GPT-6.1 Sol, and GPT-6 Astra. Guides installation of a local Codex Router and Jev decision service. The plugin package does not start services or configure credentials by itself.",
-    "developerName": "ericwanderlust",
+    "displayName": "Codex Auto Router (Early Access)",
+    "shortDescription": "Set up configurable Codex roles and adaptive effort.",
+    "longDescription": "Guides installation of the local Codex Auto Router distribution with TypeSafe/Jev or OpenCode Go classification. The plugin package does not start services or configure credentials by itself.",
+    "developerName": "roywong10",
     "category": "Productivity",
     "capabilities": [],
-    "defaultPrompt": "Help me install or diagnose Auto (Jev) for Codex without exposing my credentials."
+    "defaultPrompt": "Help me install or diagnose Codex Auto Router without exposing my credentials."
   }
 }

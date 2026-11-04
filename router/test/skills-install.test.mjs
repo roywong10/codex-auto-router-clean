@@ -110,6 +110,33 @@ test("install is idempotent and refreshes managed skills", () => {
   }
 });
 
+test("publication includes nested and hidden entries in its claimed directory", () => {
+  const home = tempCodexHome();
+  const fakeSource = mkdtempSync(path.join(os.tmpdir(), "codex-skills-source-"));
+  const name = "codex-router";
+  const source = path.join(fakeSource, name);
+  const target = path.join(home, "skills", name);
+  try {
+    mkdirSync(path.join(source, "references"), { recursive: true });
+    writeFileSync(path.join(source, "SKILL.md"), "# fixture\n");
+    writeFileSync(path.join(source, "references", "details.md"), "nested fixture\n");
+    writeFileSync(path.join(source, ".fixture"), "hidden fixture\n");
+    process.env.CODEX_ROUTER_SKILLS_DIR = fakeSource;
+    assert.equal(installSkills(home, { quiet: true }).installed, 1);
+    assert.equal(readFileSync(path.join(target, ".fixture"), "utf8"), "hidden fixture\n");
+    assert.equal(
+      readFileSync(path.join(target, "references", "details.md"), "utf8"),
+      "nested fixture\n",
+    );
+    assert.ok(installedSkillsFresh(home));
+    assert.ok(!existsSync(path.join(target, ".codex-router-publishing")));
+  } finally {
+    delete process.env.CODEX_ROUTER_SKILLS_DIR;
+    rmSync(home, { recursive: true, force: true });
+    rmSync(fakeSource, { recursive: true, force: true });
+  }
+});
+
 test("concurrent skill installs serialize ownership from recovery through publication", async () => {
   const home = tempCodexHome();
   const fakeSource = mkdtempSync(path.join(os.tmpdir(), "codex-skills-source-"));

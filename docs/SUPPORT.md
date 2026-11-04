@@ -1,14 +1,19 @@
 # Support and test matrix
 
-Last reviewed: 2026-09-30.
+Last reviewed: 2026-11-04.
 
 ## Product support
 
-The complete Jev Codex Router stack is supported on macOS with the current
+The complete Codex Auto Router Early Access stack targets macOS with the
 Codex desktop application, Node.js 22.19 or newer, and Python 3.11 or newer.
 The installer and background-service contract are macOS-specific because they
 install launchd services and publish the model into the local Codex desktop
 configuration.
+
+The real CLI contract is pinned to the versions below. A newer desktop may bundle
+a different CLI and requires separate requalification; a visible picker does not
+prove protocol compatibility. Do not infer universal Codex-version support from
+passing the pinned contract.
 
 The embedded router under `router/` remains a cross-platform fork. Its portable
 runtime and state-management suite is required on Ubuntu, macOS, and Windows

@@ -31,7 +31,7 @@ command=${1:-help}
 if [ "$#" -gt 0 ]; then shift; fi
 case "$command" in
   install) exec "$repo_dir/install.sh" "$@" ;;
-  update) exec "$repo_dir/scripts/bootstrap.sh" ;;
+  update) JEV_ROUTER_SOURCE_DIR=$repo_dir exec "$repo_dir/scripts/bootstrap.sh" "$@" ;;
   router) exec "$repo_dir/router/bin/codex-router" "$@" ;;
   doctor)
     doctor_status=0

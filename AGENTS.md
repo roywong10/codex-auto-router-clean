@@ -1,240 +1,105 @@
-# AGENTS.md — autonomous install & operations playbook
+# Codex Auto Router
 
-This file lets a coding agent (Codex, Claude Code, Cursor, …) install, verify
-and operate the **Jev Codex Router** on a user's machine without asking for
-context it can discover itself. Follow it top to bottom. Do not skip the
-verification step after each stage — they are what makes autonomy safe here.
+This is an Early Access distribution of Jev Codex Router. Read [README.md](README.md)
+for portable setup and [CONTRIBUTING.md](CONTRIBUTING.md) for development and
+verification. Preserve upstream license notices and attribution.
 
-## What you are installing
+## Architecture and Behavior
 
-A self-contained monorepo with an embedded Codex Router fork (`router/`) and a
-local Jev decision server (`server/`). Together they add **"Auto (Jev)"**
-(`jev/auto`) to the Codex picker. Every call is classified by
-[Jev](https://docs.typesafe.ai) (TypeSafe System One) and served by the
-cheapest sufficient model at an adapted thinking depth. Local hops stay on
-loopback; Jev calls go to TypeSafe. Authenticated model requests are fail-open
-on Jev classification errors; there is a kill switch.
+- `server/` owns classifier calls, bounded routing dossiers, execution roles,
+  effort, leases, and native routing telemetry.
+- `router/` is the embedded transport fork. No second checkout is required.
+- The picker is **Auto (Role Router)**. Internal `jev/*` routes, legacy command
+  names, and existing state paths remain stable for compatibility.
+- The main model defaults to Sol. Explore/execute default to Sol, mechanical to
+  Luna, visual to Terra, and plan/review to Astra. All seven roles are configurable
+  independently in `~/.config/codex-auto-router/config.json`.
+- Each fixed role independently adapts effort. On the main route only, picker
+  high sets a medium floor, xhigh a high floor, and max an xhigh floor.
+- Classifier errors retain the assigned model at medium, subject to the main
+  floor. Fixed roles fail on exhausted native quota rather than switch providers.
+- Classification-only `/v1/route` retains its independent adaptive policy.
+  `JEV_EXECUTION_POLICY=adaptive` restores the legacy main policy; it does not
+  change worker models or `/v1/route`.
+- The executor receives the full canonical Codex request. The selected classifier
+  receives only the bounded dossier, which may nevertheless contain private
+  content. Never substitute that dossier for executor history.
 
-## Hard rules (never violate)
+## Safety Boundaries
 
-1. **Never print, log, commit, or transmit secrets** — the TypeSafe API key,
-   the router `caller-secret`, or ChatGPT tokens. Reference them by file path.
-2. **Edit the source, never the artifact.** `router/src/` is the embedded
-   router's source and is meant to be edited: a behaviour bug is fixed there,
-   committed in this repository, with the tests that cover it.
-   What is off limits is the *generated and managed* output — `litellm.yaml`
-   under the router's state directory is rendered from `src/litellm-config.mjs`
-   whenever the catalog changes, and the `codex-router-managed` blocks of
-   `~/.codex/config.toml` are written by the CLI, so a hand edit there is
-   overwritten rather than applied. Change the generator, or drive the CLI and
-   the documented state files (`user-models.json`, `generic-providers.json`),
-   and leave the artifacts to be regenerated.
-3. The server binds `127.0.0.1` only. Never expose it on another interface.
-4. If `launchctl` is restricted in your environment (supervised agents often),
-   skip the service install — use the watchdog pattern and let the user run
-   `server/install-service.sh` from their own Terminal instead. Never fight
-   the restriction.
-5. Treat prompt excerpts in local logs (`jev-router-live.jsonl`,
-   `shadow-log.jsonl`) as private user data: read locally, never republish.
+Never print or publish credentials, Codex tokens, caller secrets, conversations,
+or raw routing logs. Ask for protected credential references, not key values.
+ChatGPT tokens must not be sent to the classifier.
 
-## Prerequisites (check, and report what you found)
+Edit source, not generated catalogs, `litellm.yaml`, managed Codex configuration
+blocks, or installed runtime artifacts. Keep listeners on loopback. Preserve
+authentication even when classification fails.
 
-- **macOS** with **Codex**. No separate Codex Router checkout is required.
-- **Node.js ≥ 22.19** — `node -v`.
-- **Python ≥ 3.11** — `python3 -V`.
-- A **Jev API key** for Jev. The server checks `JEV_ENV_FILE`, then the path in
-  `JEV_API_KEY_FILE`, then `~/.hermes/.env`, `~/.jev.env`, and process
-  environment variables. If none exists, ask only for the path to the user's
-  protected local key file; never ask for the key value in chat.
+Keep user settings outside the checkout. Configuration is loaded at service
+startup and catalog generation, not per request. Do not restart services while
+they are carrying work. Source validation is not deployment validation.
 
-## Install, step by step
+Delegation depends on caller tools, user instructions, and repository rules.
+Use only offered agent types. Give workers bounded ownership; retain integration
+and acceptance in the main task. A browser session has one active operator.
 
-### 1 — Verify the embedded source
+## Installation and Updates
 
-```bash
-cd <repo>
-test -x router/bin/codex-router
-node -p 'require("./router/package.json").name'
-# expect: codex-model-router
-```
+The complete stack targets macOS, Node.js 22.19+, Python 3.11+, Codex desktop and
+CLI, and an authenticated account with access to the configured models. Follow
+the selected TypeSafe/Jev or OpenCode Go credential procedure in the README.
+Do not claim arbitrary compatible endpoints are supported.
 
-### 2 — Install the complete stack
+`./install.sh` configures the embedded stack and both launchd services. It asks
+separately before reading Codex's login session and before a quota-consuming live
+smoke request. Skipping smoke leaves real routing unverified.
 
-```bash
-./install.sh
-```
+`./install.sh --prepare-only` prepares dependencies without configuring services,
+credentials, or the user's Codex state. If service management is restricted,
+use this mode and have the user run the full installer in Terminal.
 
-This is the supported full installation path. It uses `router/` directly,
-preserves existing provider selection, idempotently configures the `jev`
-provider and `jev/auto` model, provisions the protected local credential,
-asks before enabling native ChatGPT sharing, installs both launchd services,
-and publishes the picker. It separately asks before sending one live smoke
-request that may use Jev and ChatGPT quota.
-General credential discovery stays off; after consent, the sharing action reads
-only Codex's own `auth.json`. The public bootstrap clones this monorepo into
-`~/.local/share/jev-codex-router-source`; it does not clone a second router.
+`bin/jev-codex-router update` verifies this distribution's remote, requires a clean
+tree, fast-forwards the same checkout, and reinstalls. It must never silently
+replace this distribution with upstream. The bootstrap defaults to
+`~/.local/share/codex-auto-router-source`; `JEV_ROUTER_SOURCE_DIR` can explicitly
+select an existing checkout.
 
-If `launchctl` is restricted, run `./install.sh --prepare-only`, perform
-non-service diagnostics, then ask the user to run `./install.sh` in their own
-Terminal. Do not redirect the installation to a second checkout.
+Temporary HOME, CODEX_HOME, state directories, labels, or a stub launchctl do
+not isolate the launchd user domain. Full install/update/uninstall acceptance
+requires a separate OS user or VM. Read [docs/RELEASING.md](docs/RELEASING.md)
+before testing installation.
 
-### 3 — Restart Codex
+## Verification and Operations
 
-Fully quit and reopen the Codex app so it reloads the picker catalog, then the
-user can select **Auto (Jev)**.
+Run credential-free contributor checks from CONTRIBUTING.md and report actual
+results and skips. The supported CI matrix is in [docs/SUPPORT.md](docs/SUPPORT.md).
+Do not weaken assertions or disable a platform to hide a failure.
 
-## End-to-end verification (must pass before declaring success)
+After an explicitly authorized installation, run `bin/jev-codex-router doctor`.
+Only with live-request consent, run `bin/jev-codex-router smoke`: require a fresh
+classifier decision, completed response, matching selected/response models, and
+confirmed visible effort. Health or a picker entry alone is insufficient.
+Fully reopen Codex to reload its model and agent catalogs.
 
-Run this only with the user's consent to a live Jev/model request; the installer
-asks before running it.
+Local logs under `~/.codex/codex-router/` are private. The CLI `report` command
+summarizes routing; `router refresh-catalog` republishes the catalog. Neither
+operation proves live model access or classifier quality.
 
-```bash
-python3 server/smoke.py
-```
+The `jev-router.off` and `jev-router.shadow` sentinels bypass applied classifier
+decisions. Fixed-role requests retain their assigned model at medium, with the
+main effort floor; legacy adaptive requests retain their separate behavior.
+The `jev-router.hide-signature` sentinel hides ordinary reply route headers.
+Structured JSON is never prefixed. Debug captures remain private even when
+bounded or sanitized.
 
-Expect HTTP 200 and status `completed`, with a selected model, effort, and
-`decision_source=jev`. The script refuses a stale running policy or a technical
-fallback and never prints credentials. Then:
+`uninstall` stops the sidecar and disables its model/provider while retaining
+keys and diagnostics. Use `uninstall --revoke-session` only with explicit
+authorization to revoke native session sharing.
 
-```bash
-tail -1 ~/.codex/codex-router/jev-router-live.jsonl
-# expect one JSON line: gate=apply, tier, conf, depth, model, effort, speed,
-# jev_ms, total_ms, status=200, out=sse
-```
+## Publication
 
-## Operations
-
-- **Decision log**: `~/.codex/codex-router/jev-router-live.jsonl` — one line per
-  routed turn.
-- **Ask surface**: `POST /ask` (also `/v1/ask`) — typed pass-through to System
-  One for local callers with their own question set (state ≤ 120k chars, ≤ 40
-  questions, caller state never logged). `502 jev: HTTP Error 402` means the
-  TypeSafe account is out of credits; `503` means no key was found.
-- **Kill switch** (instant, no restart): `touch ~/.codex/codex-router/jev-router.off`
-  → the server relays to astra without calling Jev. Remove the file to re-enable.
-- **Codex-dry fallback** (only while native usage is exhausted):
-  `touch ~/.codex/codex-router/jev-router.codex-dry` → calls go to at most two
-  compatible routes discovered from this machine's configured models. OpenAI is
-  always attempted first while its allowance works. A local model additionally
-  requires a live runtime and a persisted successful Codex agent check
-  (`router/bin/control failover qualify <local-model-slug>`).
-  `JEV_FALLBACK_STANDARD` / `JEV_FALLBACK_FRONTIER` remain optional static
-  overrides; retries never repeat an identical target.
-  Remove the file to return to the
-  luna/sol/astra native model ladder. An automatic flip (429 / usage-limit response) also
-  retries the failed call on the discovered fallback, then expires at the instant the edge
-  announced for the window reset (30 minutes when the refusal announces none,
-  one week at most). It re-probes native at most once per minute to detect an
-  early quota reset. `cat ~/.codex/codex-router/jev-router.codex-dry.json`
-  reads the reason and `until_iso`; the next successful native call clears it.
-  Log fields to watch: `dry`, `native`, `retried`.
-- **Thread display**: ordinary assistant text replies begin with the actual
-  model ID and effort. Reasoning summaries also carry an exact route tag when
-  Codex displays them; do not rely on that UI summary alone. Structured JSON
-  output is never prefixed. `touch ~/.codex/codex-router/jev-router.hide-signature`
-  hides the reply header; remove the sentinel to restore it.
-- **Effort selector**: leave the Codex picker at its default for `Auto (Jev)`.
-  In the fixed Sol main policy, high sets a medium floor, xhigh a high floor,
-  and max an xhigh floor. Low/medium retain unrestricted automatic effort.
-  Worker role routes ignore this preference and independently adapt effort.
-  Jev controls the actual effort through `configuration_update` on eligible new
-  user turns; compatible tool continuations replay prior updates in place.
-  Incompatible requests use request-level `reasoning.effort`.
-  `doctor` checks installation/service state; `smoke` proves a live Jev decision.
-  A healthy `/health` response alone does not prove Jev authentication.
-- **Shadow mode**: `touch ~/.codex/codex-router/jev-router.shadow` → decisions
-  are logged (`would` field) while every call is still served by astra.
-- **Debug capture** (bounded): `touch ~/.codex/codex-router/jev-router.debug`
-  → request shapes in `jev-router-debug.jsonl` and transport counters in
-  `jev-router-debug-stream.log`. Remove the file to stop.
-  Logs are 0600, rotate at 8 MiB and retain one backup. No new prompt excerpts
-  or raw model streams are recorded; old captures are protected, not deleted.
-- **Tune the policy**: the shared contract in `server/routing_policy.py`. Keep decisions
-  joint and evidence-based; restart the server after edits. Cache affinity
-  (`last_model`, measured state/read percentage/age and context size) is a cost
-  signal inside Jev's typed model choice, never a code-side model override.
-- **Backtest**: `python3 poc/backtest_savings.py --days 7` (see BACKTEST.md).
-- **Router CLI**: `bin/jev-codex-router router <command>` delegates to the
-  embedded runtime.
-- **Update**: `bin/jev-codex-router update` updates this monorepo and reruns the
-  unified installer; it never pulls a separate router checkout.
-- **Disable**: `bin/jev-codex-router router providers generic disable jev`
-  (keeps state); full rollback: also
-  `bin/jev-codex-router router chatgpt-session disable` and stop the
-  service (`launchctl bootout gui/$(id -u)/com.thibaultsaintjean.jev-router`).
-
-## Troubleshooting
-
-| Symptom | Cause | Fix |
-|---|---|---|
-| `{"detail":"Unauthorized"}` from the caller edge | native sharing off | `bin/jev-codex-router router chatgpt-session enable` |
-| `{"detail":"Stream must be set to true"}` | the caller edge streams only | send `"stream": true`; the bundled server forces it |
-| HTTP 502 `provider_api_proxy_error` on jev-auto | server-side error | check the `status`/`out` fields in `jev-router-live.jsonl`, and the server's stderr log |
-| HTTP 502 `empty_completion` | upstream completed with no assistant output | check `attempts[].completion` and `gate` in the private decision log; a native route retries once on Astra medium before returning this error |
-| "Auto (Jev)" absent from the picker | not published/visible, or Codex not restarted | `refresh-catalog`, `control picker set jev/auto show`, full Codex restart |
-| Native 429 / "usage limit" while routing | ChatGPT usage window exhausted | expected: the Codex-dry fallback takes over (`jev-router.codex-dry.json`); delete the manual file to re-probe sooner |
-| Jev calls fail with `402 Payment Required` (`gate=codex_dry(fallback)`, `tier` null in the log) | the TypeSafe account is out of credits | expected: the router keeps serving through a configured fallback; add credits at console.typesafe.ai to restore classification |
-| `Unknown API gateway model: jev-auto` | catalog not republished | `bin/jev-codex-router router refresh-catalog` |
-| Jev returns HTTP 422 | request body missing `"model"` | always send `"model": "jev-latest"` to the System One API |
-| Native calls fail after a few days | shared session expired | re-run `chatgpt-session enable` |
-| `launchctl` rejected inside a supervised agent | environment restriction | run `./install.sh --prepare-only`; let the user run `./install.sh` in Terminal |
-
-## Latency & cost notes
-
-- The current policy is `split-v17-gpt6-luna-sol-astra`: one System One request asks
-  four independent Choice questions with explicit criteria — mandatory Astra
-  policy, capability tier, reasoning effort and a bounded route lease. New user
-  turns, errors, compactions and changed tool chains are always re-evaluated;
-  clean continuations may reuse the exact route for one tool chain or user turn.
-  Pre-project software/project
-  architecture, independent final code review and risk-focused review force Astra while
-  preserving Jev's independently selected effort. The model question also gets
-  measured cache evidence for the private prompt-cache scope: `hot` requires an
-  observed read and a matching current prefix; `warming` has zero read,
-  `stale_prefix` marks changed history or settings, and missing evidence is
-  `unknown`. A sufficient hot model can beat a cold switch without blocking a
-  materially required tier.
-  Provider retries inside one
-  call keep that decision.
-  Routine in-progress quality checkpoints, score comparisons and fixes to established
-  findings use normal routing. Good scores never waive a required final/risk review.
-  The router does not run `jev-review` or create an independent reviewer; quality
-  scoring and blind reviewer context must be handled by the calling workflow.
-  The selected model always receives the complete canonical request and the
-  original cache controls; Jev receives only the bounded decision dossier. For
-  eligible GPT-6 user-turn calls, adaptive effort uses a `configuration_update` before the
-  latest user message. Compatible full-history continuations replay prior updates
-  at their original boundaries while keeping request-level effort stable; changed
-  tool-step effort uses request-level fallback. A
-  context-dependent short ask also gets one bounded active-task summary. Cache
-  hits are a cost optimization, never the carrier of conversation continuity:
-  reuse is measured per `(hashed session, model)`, while every model swap still
-  gets the full replay. All tiers use adaptive effort and standard speed; never
-  force Luna to max or enable Fast mode.
-- Apart from the explicit mandatory-Astra policy, no scenario override, target
-  model share, or confidence threshold may replace a valid Jev choice. Confidence
-  is diagnostic. The native ladder is GPT-6 Luna → GPT-6.1 Sol → GPT-6 Astra.
-  GPT-6.1 Sol's near-Astra ability covers ordinary complex coding, multi-step work
-  and debugging. Astra handles the hardest ambiguity and substantive failed Sol
-  fixes after verifying inputs/access; mandatory Astra categories still win.
-  Judge remaining work, not completed phases: administrative follow-through is
-  not review. Luna can handle clear low-risk edits, summaries and explanations; implied intent and autonomous
-  investigation belong to Sol. Optimize total task cost including clarification
-  and correction turns, without scenario regexes or automatic opening floors.
-  Every short ask receives one bounded preceding task and assistant proposal.
-  The latest tool batch contributes counts and at most three excerpts, errors
-  first. Replay and live routing share the same dossier builder.
-  Live routing also supplies bounded same-turn failure metadata when available.
-  Do not infer model incapability from a transport failure or enforce a model share.
-  Empty recovery never leases the failed original choice. For streamed failures,
-  inspect `outcome_status` and `completion_status`, not HTTP `status` alone.
-- Provider/schema failures remain distinct: Astra at medium, logged as a
-  technical fallback. Kill switch and exhausted-native-quota handling still apply.
-- Jev usage and upstream per-attempt tokens are logged when available. Run
-  `python3 server/report_routing.py --days 7 --policy current` for native-only
-  credit estimates, lease savings and observed prompt-cache reads/writes by
-  model/session; unknown usage remains unknown and reasoning tokens are not
-  counted twice.
-- `BACKTEST.md` documents an optional local simulation over private session
-  usage. Replay prompts and results must not be committed or published. The
-  simulation does not measure current quota savings or result quality.
+Public documentation and contribution conventions are English. Never publish
+personal setup references, private prompt captures, or unreviewed screenshots.
+Audit history and commit metadata as well as HEAD. Do not rewrite shared history,
+commit, push, or change repository visibility without the required explicit
+approval. An Early Access label does not waive the release acceptance gates.

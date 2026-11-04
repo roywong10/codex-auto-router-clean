@@ -806,7 +806,14 @@ function publishStagedSkill(staged, target, publicationToken, { onPublicationCla
       flag: "wx",
     });
     onPublicationClaimed?.({ target });
-    cpSync(staged.content, target, { recursive: true, force: false, errorOnExist: true });
+    // Node 24 rejects copying onto the directory already claimed by mkdir.
+    for (const entry of readdirSync(staged.content)) {
+      cpSync(path.join(staged.content, entry), path.join(target, entry), {
+        recursive: true,
+        force: false,
+        errorOnExist: true,
+      });
+    }
     const stagedDigest = directoryDigest(staged.content);
     const targetDigest = directoryDigest(target, { ignoreRootEntries: [PUBLISH_MARKER] });
     if (!stagedDigest || stagedDigest !== targetDigest) {

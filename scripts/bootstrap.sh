@@ -1,12 +1,12 @@
 #!/bin/sh
 set -eu
 
-repo_url=https://github.com/ericwanderlust/jev-codex-router.git
-source_dir=${JEV_ROUTER_SOURCE_DIR:-$HOME/.local/share/jev-codex-router-source}
+repo_url=https://github.com/roywong10/codex-auto-router.git
+source_dir=${JEV_ROUTER_SOURCE_DIR:-$HOME/.local/share/codex-auto-router-source}
 
 case ${1:-} in
   -h|--help)
-    echo "Install or update Jev Codex Router from $repo_url"
+    echo "Install or update Codex Auto Router (Early Access) from $repo_url"
     echo "Set JEV_ROUTER_SOURCE_DIR to choose the source checkout path."
     echo "Usage: bootstrap.sh [--prepare-only]"
     exit 0
@@ -14,6 +14,7 @@ case ${1:-} in
   ""|--prepare-only) ;;
   *) echo "Usage: bootstrap.sh [--prepare-only]" >&2; exit 2 ;;
 esac
+[ "$#" -le 1 ] || { echo "Usage: bootstrap.sh [--prepare-only]" >&2; exit 2; }
 
 if [ -e "$source_dir" ]; then
   if ! git -C "$source_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -22,7 +23,7 @@ if [ -e "$source_dir" ]; then
   fi
   origin=$(git -C "$source_dir" remote get-url origin 2>/dev/null || true)
   case $origin in
-    https://github.com/ericwanderlust/jev-codex-router|https://github.com/ericwanderlust/jev-codex-router.git) ;;
+    https://github.com/roywong10/codex-auto-router|https://github.com/roywong10/codex-auto-router.git|git@github.com:roywong10/codex-auto-router.git|ssh://git@github.com/roywong10/codex-auto-router.git) ;;
     *) echo "The source path belongs to a different remote; it was left untouched." >&2; exit 1 ;;
   esac
   if [ -n "$(git -C "$source_dir" status --porcelain)" ]; then

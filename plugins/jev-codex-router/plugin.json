@@ -2,11 +2,11 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "jev-codex-router",
   "version": "0.2.1",
-  "description": "Install and operate Auto (Jev), a local model router designed for Codex GPT-6 Luna, GPT-6.1 Sol, and GPT-6 Astra.",
+  "description": "Install and operate Codex Auto Router (Early Access), with configurable role models and adaptive effort.",
   "author": {
-    "name": "ericwanderlust"
+    "name": "roywong10"
   },
-  "repository": "https://github.com/ericwanderlust/jev-codex-router",
+  "repository": "https://github.com/roywong10/codex-auto-router",
   "license": "MIT",
   "keywords": [
     "codex",
@@ -16,15 +16,15 @@
   "extensions": {
     "com.openai": {
       "interface": {
-        "displayName": "Auto (Jev) for Codex",
-        "shortDescription": "Set up Auto (Jev) for Codex GPT-6 models.",
-        "longDescription": "Designed for Codex GPT-6 Luna, GPT-6.1 Sol, and GPT-6 Astra. Guides installation of a local Codex Router and Jev decision service. Installing this plugin does not start local services or configure credentials.",
-        "developerName": "ericwanderlust",
+        "displayName": "Codex Auto Router (Early Access)",
+        "shortDescription": "Set up configurable Codex roles and adaptive effort.",
+        "longDescription": "Guides installation of the local Codex Auto Router distribution with TypeSafe/Jev or OpenCode Go classification. Installing this plugin does not start local services or configure credentials.",
+        "developerName": "roywong10",
         "category": "Productivity",
         "capabilities": [],
         "defaultPrompt": [
-          "Help me install Auto (Jev) for Codex without exposing my credentials.",
-          "Diagnose why Auto (Jev) is not routing a request."
+          "Help me install Codex Auto Router without exposing my credentials.",
+          "Diagnose why Auto (Role Router) is not routing a request."
         ]
       }
     }

@@ -1,5 +1,9 @@
 # Codex Auto Router
 
+**Early Access.** Interfaces and installation workflows may change. The complete
+stack currently targets macOS; the embedded router's cross-platform tests do not
+establish Linux or Windows installation support. Keep configuration backups.
+
 A local Codex router with a stable main model, specialist role agents, and
 adaptive reasoning effort. Pick the execution model; let a classifier adjust
 effort for the remaining work.
@@ -26,10 +30,10 @@ DeepSeek V4.1 Flash. Arbitrary compatible API endpoints are not yet supported.
 | Execution role | Default model |
 | --- | --- |
 | Main: requirements, implementation, integration, acceptance | Sol, configurable |
-| Explore / Execute: scoped discovery and implementation | Sol |
-| Mechanical: established edits and simple checks | Luna |
-| Visual: visual inspection, browser and desktop workflows | Terra |
-| Plan / Review: difficult architecture and independent review | Astra |
+| Explore / Execute: scoped discovery and implementation | Sol, configurable |
+| Mechanical: established edits and simple checks | Luna, configurable |
+| Visual: visual inspection, browser and desktop workflows | Terra, configurable |
+| Plan / Review: difficult architecture and independent review | Astra, configurable |
 
 Each worker independently adapts effort. Delegation depends on caller tools,
 user instructions, and repository rules. A browser session has one operator.
@@ -42,6 +46,9 @@ changing providers.
 - macOS, Codex desktop and CLI, and an authenticated Codex account.
 - Node.js 22.19+ and Python 3.11+.
 - Your own classifier credentials and access to the configured execution models.
+
+See the [support matrix](docs/SUPPORT.md) for pinned Codex CLI contract versions.
+Newer desktop or CLI builds require separate compatibility validation.
 
 The installer changes local configuration and installs background services.
 Review it before running. Contributor tests do not require installation.
@@ -168,13 +175,13 @@ the applied value. Never upload raw logs or conversations.
 To update a clean checkout, wait for tasks to finish and run:
 
 ```sh
-git pull --ff-only origin main
-./install.sh
+bin/jev-codex-router update
 ```
 
-Do not use the inherited `bin/jev-codex-router update` or upstream bootstrap for
-this distribution: they remain bound to upstream. Review upstream changes
-separately. Go mode does not support generic `/ask`; classification-only
+The updater requires a clean checkout, verifies that its remote is this
+distribution, updates that same checkout with a fast-forward merge, and reruns
+installation. It does not switch to upstream or a second checkout. Review
+upstream changes separately. Go mode does not support generic `/ask`; classification-only
 `/v1/route` retains its independent adaptive policy.
 
 ## Contributing and Security
@@ -182,5 +189,6 @@ separately. Go mode does not support generic `/ask`; classification-only
 See [CONTRIBUTING.md](CONTRIBUTING.md) for English contribution conventions,
 offline tests, ownership boundaries, and review expectations.
 See [SECURITY.md](SECURITY.md) for security reporting guidance.
-Legacy [local adaptation notes](LOCAL-OPENCODE-GO.md) record installation-specific
-history, not a portable setup procedure.
+See [release preparation](docs/RELEASING.md) for acceptance gates and
+[support](docs/SUPPORT.md) for the validation matrix. Early Access is not a
+guarantee of model access, routing quality, savings, or production suitability.

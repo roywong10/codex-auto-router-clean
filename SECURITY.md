@@ -4,8 +4,8 @@
 
 Report suspected vulnerabilities in this monorepo, including its embedded
 `router/` fork, through
-[GitHub Private Vulnerability Reporting](https://github.com/ericwanderlust/jev-codex-router/security/advisories/new)
-if that feature is enabled for this fork. Do not post vulnerability details in
+[GitHub Private Vulnerability Reporting](https://github.com/roywong10/codex-auto-router/security/advisories/new)
+if that feature is enabled for this repository. Do not post vulnerability details in
 public issues. If the private form is unavailable, open an issue asking for a
 private contact without disclosing technical details.
 
@@ -21,8 +21,9 @@ backports; update to the published fixing commit. Platform coverage is defined
 in [docs/SUPPORT.md](docs/SUPPORT.md), not inherited upstream release claims.
 
 Services are local-only and must remain bound to loopback. Local capabilities
-do not isolate hostile code running as the same OS user. TypeSafe receives a
-bounded routing dossier; the selected execution provider receives conversation
+do not isolate hostile code running as the same OS user. The configured
+classifier (TypeSafe/Jev or OpenCode Go) receives a bounded routing dossier;
+the selected execution provider receives conversation
 context. A compact dossier may still contain sensitive user content.
 
 See [the embedded security model](router/SECURITY.md) for its detailed credential

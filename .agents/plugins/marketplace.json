@@ -1,7 +1,7 @@
 {
   "name": "jev-codex-router",
   "interface": {
-    "displayName": "Jev Codex Router"
+    "displayName": "Codex Auto Router (Early Access)"
   },
   "plugins": [
     {
