@@ -1,5 +1,6 @@
 """Fixed Codex execution roles; the shared OMP classifier remains adaptive."""
 import os
+from execution_config import main_model
 
 from routing_policy import (
     ASTRA, LUNA, SOL, TERRA, POLICY_VERSION, QUESTIONS, EFFORTS, LEASES,
@@ -8,7 +9,7 @@ from routing_policy import (
 
 EXECUTION_POLICY_VERSION = POLICY_VERSION + "-sol-main-roles-v2"
 ROLE_MODELS = {
-    "main": SOL,
+    "main": main_model(),
     "explore": SOL,
     "execute": SOL,
     "mechanical": LUNA,

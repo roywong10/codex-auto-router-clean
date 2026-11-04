@@ -49,6 +49,14 @@ version or changelog does not constitute a release of this monorepo.
 
 ## Pull requests
 
+Write public documentation and contribution conventions in English. Keep
+personal installation paths and credential references out of portable examples.
+Never claim support for an untested provider or model.
+
+User settings belong outside the checkout. Keep model validation shared between
+execution and catalog publication. Changing the main model must not change
+worker assignments or silently relax effort constraints.
+
 One logical change per PR. Include the linked issue, changed contract, tests
 actually run, remaining skips/limitations, and migration or rollback impact.
 Use conventional commit messages. Avoid unrelated formatting and generated
