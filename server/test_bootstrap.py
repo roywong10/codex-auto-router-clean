@@ -8,7 +8,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-REMOTE = "https://github.com/roywong10/codex-auto-router.git"
+REMOTE = "https://github.com/roywong10/codex-auto-router-clean.git"
 
 
 class BootstrapTests(unittest.TestCase):
@@ -58,7 +58,7 @@ esac
         )
 
     def test_clean_distribution_checkout_updates_and_forwards_prepare_flag(self):
-        for remote in (REMOTE, "git@github.com:roywong10/codex-auto-router.git"):
+        for remote in (REMOTE, "git@github.com:roywong10/codex-auto-router-clean.git"):
             with self.subTest(remote=remote):
                 self.env["TEST_ORIGIN"] = remote
                 result = self.run_bootstrap("--prepare-only")

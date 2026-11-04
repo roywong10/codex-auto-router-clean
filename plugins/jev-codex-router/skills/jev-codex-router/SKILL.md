@@ -5,7 +5,7 @@ description: Install, update, verify, diagnose, or uninstall Codex Auto Router, 
 
 # Codex Auto Router
 
-Use this distribution's [repository](https://github.com/roywong10/codex-auto-router),
+Use this distribution's [repository](https://github.com/roywong10/codex-auto-router-clean),
 not upstream's installer. The legacy plugin name, CLI, and internal `jev/*`
 identifiers remain for compatibility. The picker is **Auto (Role Router)**.
 Installing the plugin alone does not configure credentials or start services.
@@ -16,7 +16,7 @@ Read the checkout's README and AGENTS.md before operations. Require macOS,
 Node.js 22.19+, Python 3.11+, Codex desktop and CLI, and the user's authenticated
 Codex account. Model access is not guaranteed.
 
-Clone `roywong10/codex-auto-router`. Choose either TypeSafe/Jev or OpenCode Go
+Clone `roywong10/codex-auto-router-clean`. Choose either TypeSafe/Jev or OpenCode Go
 using the README credential-reference procedure. Ask only for protected key-file
 paths or Keychain references, never actual keys. Never expose tokens, caller
 secrets, auth.json contents, or private logs.

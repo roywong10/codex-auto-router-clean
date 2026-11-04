@@ -4,7 +4,7 @@
 
 Report suspected vulnerabilities in this monorepo, including its embedded
 `router/` fork, through
-[GitHub Private Vulnerability Reporting](https://github.com/roywong10/codex-auto-router/security/advisories/new)
+[GitHub Private Vulnerability Reporting](https://github.com/roywong10/codex-auto-router-clean/security/advisories/new)
 if that feature is enabled for this repository. Do not post vulnerability details in
 public issues. If the private form is unavailable, open an issue asking for a
 private contact without disclosing technical details.

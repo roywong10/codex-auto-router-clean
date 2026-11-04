@@ -58,8 +58,8 @@ Review it before running. Contributor tests do not require installation.
 Clone this repository and enter the checkout:
 
 ```sh
-gh repo clone roywong10/codex-auto-router
-cd codex-auto-router
+gh repo clone roywong10/codex-auto-router-clean
+cd codex-auto-router-clean
 ```
 
 ### OpenCode Go

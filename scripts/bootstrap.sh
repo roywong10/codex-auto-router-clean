@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-repo_url=https://github.com/roywong10/codex-auto-router.git
+repo_url=https://github.com/roywong10/codex-auto-router-clean.git
 source_dir=${JEV_ROUTER_SOURCE_DIR:-$HOME/.local/share/codex-auto-router-source}
 
 case ${1:-} in
@@ -23,7 +23,7 @@ if [ -e "$source_dir" ]; then
   fi
   origin=$(git -C "$source_dir" remote get-url origin 2>/dev/null || true)
   case $origin in
-    https://github.com/roywong10/codex-auto-router|https://github.com/roywong10/codex-auto-router.git|git@github.com:roywong10/codex-auto-router.git|ssh://git@github.com/roywong10/codex-auto-router.git) ;;
+    https://github.com/roywong10/codex-auto-router-clean|https://github.com/roywong10/codex-auto-router-clean.git|git@github.com:roywong10/codex-auto-router-clean.git|ssh://git@github.com/roywong10/codex-auto-router-clean.git) ;;
     *) echo "The source path belongs to a different remote; it was left untouched." >&2; exit 1 ;;
   esac
   if [ -n "$(git -C "$source_dir" status --porcelain)" ]; then
