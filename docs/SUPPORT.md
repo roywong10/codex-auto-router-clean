@@ -15,10 +15,18 @@ a different CLI and requires separate requalification; a visible picker does not
 prove protocol compatibility. Do not infer universal Codex-version support from
 passing the pinned contract.
 
-The embedded router under `router/` remains a cross-platform fork. Its portable
-runtime and state-management suite is required on Ubuntu, macOS, and Windows
-with Node.js 24 in CI. Passing that matrix does not make the root launchd
-installer supported on Linux or Windows.
+The embedded router under `router/` retains inherited cross-platform code.
+This distribution requires its runtime and state-management suite on Ubuntu
+and macOS with Node.js 24 in CI. Ubuntu validates portable behavior; it does
+not make the root launchd installer supported on Linux.
+
+Windows is outside this distribution's Early Access support and required CI
+matrix. Its inherited implementation and tests remain in the source tree, but
+are not qualified for use. The Windows run for candidate `60e93d2` did not
+complete successfully: the first attempt was cancelled and its retry ended
+after approximately 60 minutes. Removing that lane does not resolve its
+performance problem. Restoring Windows support requires investigation and a
+successful complete Windows suite.
 
 ## Required CI lanes
 
@@ -26,7 +34,7 @@ installer supported on Linux or Windows.
 | --- | --- | --- |
 | Jev server | Ubuntu / Python 3.11 | Minimum supported Python and portable policy/relay behavior |
 | Jev server | macOS / Python 3.12 | Primary product OS and a current Python runtime |
-| Embedded router | Ubuntu, macOS, Windows / Node.js 24 | Portable fork behavior, state safety, and platform-specific branches |
+| Embedded router | Ubuntu, macOS / Node.js 24 | Portable fork behavior, state safety, and the tested platform branches; no Windows qualification |
 | Browser panel | Ubuntu / Playwright Chromium | Browser UI tests execute instead of silently skipping for a missing browser |
 | Codex app-server contract | Ubuntu / Codex CLI `0.155.0-alpha.9.2` and `0.159.2` | Each real, known Codex binary completes both login-free provider configurations |
 

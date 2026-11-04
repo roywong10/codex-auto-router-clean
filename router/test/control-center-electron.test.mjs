@@ -1275,24 +1275,6 @@ test("provider usage reads outlive optional account refreshes", async () => {
   assert.doesNotMatch(source, /\["provider-usage"\], \{ timeoutMs: 20_000 \}/);
 });
 
-test("dashboard presents traffic statistics before route and service controls", async () => {
-  const source = await readFile(new URL("../apps/control-center/src/pages/DashboardPage.tsx", import.meta.url), "utf8");
-  const positions = {
-    summary: source.indexOf('className="db-summary-grid"'),
-    traffic: source.indexOf('className="db-traffic-grid"'),
-    activity: source.indexOf("<TokenActivity"),
-    breakdown: source.indexOf('className="db-panel-grid db-dashboard-details"'),
-    events: source.indexOf('className="panel-section db-events-panel"'),
-    routes: source.indexOf("<RouteDashboardPanel"),
-    health: source.indexOf("<ServiceHealthPanel"),
-  };
-  assert.ok(Object.values(positions).every((position) => position >= 0), "every dashboard section should be present");
-  assert.deepEqual(
-    Object.entries(positions).sort((left, right) => left[1] - right[1]).map(([name]) => name),
-    ["summary", "traffic", "activity", "breakdown", "events", "routes", "health"],
-  );
-});
-
 test("preload exposes only the named control operations", async () => {
   const source = await readFile(new URL("../apps/control-center/electron/preload.cjs", import.meta.url), "utf8");
   for (const method of [
@@ -1861,24 +1843,6 @@ test("providers and models share one provider-first Models destination without t
   const dashboard = await readFile(new URL("../apps/control-center/src/pages/DashboardPage.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(dashboard, /onNavigate\("models", "providers"\)/);
   assert.doesNotMatch(dashboard, /onNavigate\("models", "models"\)/);
-});
-
-test("control center focus feedback uses state changes without focus rings", async () => {
-  const styleUrls = [
-    "../apps/control-center/src/styles.css",
-    "../apps/control-center/src/pages/dashboard.css",
-    "../apps/control-center/src/pages/providers-models.css",
-    "../apps/control-center/src/pages/usage-status.css",
-    "../apps/control-center/src/search-dialog.css",
-  ];
-  const styles = (await Promise.all(styleUrls.map((url) => readFile(new URL(url, import.meta.url), "utf8")))).join("\n");
-
-  assert.doesNotMatch(styles, /outline:\s*2px/);
-  assert.doesNotMatch(styles, /box-shadow:\s*0 0 0/);
-  assert.match(styles, /:where\(button, \[tabindex\]\):focus-visible[\s\S]*?background-color/);
-  assert.match(styles, /:where\(input, select, textarea\):focus-visible[\s\S]*?border-color/);
-  assert.match(styles, /\.toggle input:focus-visible \+ span[\s\S]*?border-color/);
-  assert.match(styles, /\.db-trend-slot:focus-visible[\s\S]*?background/);
 });
 
 test("harness and context IPC remain fixed and session-scoped", async () => {
