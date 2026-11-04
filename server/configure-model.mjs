@@ -19,7 +19,7 @@ export const JEV_MODEL = Object.freeze({
   upstreamModel: "auto",
   provider: "jev",
   listed: true,
-  displayName: usesDeepSeek ? "Auto (DeepSeek router)" : "Auto (Jev)",
+  displayName: "Auto (Role Router)",
   description:
     `Fixed GPT-6.1 Sol main agent; automatic effort by ${usesDeepSeek ? "DeepSeek V4.1 Flash via OpenCode Go" : "Jev"}. Dedicated Sol, Luna, Terra and Astra role agents.`,
   priority: 95,

@@ -1,9 +1,13 @@
-# DeepSeek Codex Router
+# Codex Auto Router
 
-这是基于 Jev Codex Router 的个人定制版。默认使用 **DeepSeek 判断 effort，
+这是基于 Jev Codex Router 的个人定制版。当前配置使用 **DeepSeek 判断 effort，
 Sol 执行主干任务**，专项工作交给固定模型的角色代理。下方“上游说明”保留
 原项目文档；与本节冲突时，以本节及 [本地改动记录](LOCAL-OPENCODE-GO.md) 为准。
 MIT 许可证与上游来源信息保持不变。
+
+分类后端与执行策略分离：目前支持 TypeSafe 和 OpenCode Go；后者当前使用
+DeepSeek，并非任意兼容 API 都能直接接入。更换后端不改变菜单名称
+`Auto (Role Router)`。内部路由 ID `jev/auto` 保持不变。
 
 ## 本版分工
 
@@ -43,7 +47,7 @@ MIT 许可证与上游来源信息保持不变。
 先确保 GitHub CLI 已登录且能访问此仓库。已有本机安装时不要重复克隆：
 
 ```sh
-gh repo clone roywong10/deepseek-codex-router "$HOME/.local/share/jev-codex-router-source"
+gh repo clone roywong10/codex-auto-router "$HOME/.local/share/jev-codex-router-source"
 cd "$HOME/.local/share/jev-codex-router-source"
 ```
 
@@ -78,7 +82,7 @@ export OPENCODE_GO_KEYCHAIN_ACCOUNT="$USER"
 DeepSeek；分类器只接收有界的任务材料，完整执行请求交给 Codex 模型。
 跳过 smoke 不影响安装，但不能据此声称真实调用已验证。
 
-完全退出并重开 Codex，选择 **Auto (DeepSeek router)**。在同一个已配置
+完全退出并重开 Codex，选择 **Auto (Role Router)**。在同一个已配置
 环境变量的 Terminal 中运行：
 
 ```sh

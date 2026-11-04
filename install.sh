@@ -160,8 +160,4 @@ case $smoke_consent in
 esac
 
 printf '\nJev Codex Router is installed from %s.\n' "$repo_dir"
-if [ "${JEV_DECISION_PROVIDER:-typesafe}" = opencode-go ]; then
-  printf 'Fully quit and reopen Codex, then select "Auto (DeepSeek router)".\n'
-else
-  printf 'Fully quit and reopen Codex, then select "Auto (Jev)".\n'
-fi
+printf 'Fully quit and reopen Codex, then select "Auto (Role Router)".\n'

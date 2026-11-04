@@ -116,7 +116,7 @@ class Classifier(unittest.TestCase):
             models = json.loads((Path(temp) / "user-models.json").read_text())["models"]
             self.assertEqual(len(models), 7)
             self.assertEqual(models[0]["slug"], "jev/auto")
-            self.assertEqual(models[0]["displayName"], "Auto (DeepSeek router)")
+            self.assertEqual(models[0]["displayName"], "Auto (Role Router)")
 
 
 class NativeRouting(unittest.TestCase):

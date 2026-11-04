@@ -121,8 +121,7 @@ LOG_PATH = os.path.join(STATE, "jev-router-live.jsonl")
 LISTEN = ("127.0.0.1", 4319)
 ROUTER = ("127.0.0.1", 4202)
 
-DISPLAY_NAME = ("Auto (DeepSeek router)" if opencode_decision.decision_provider() == "opencode-go"
-                else "Auto (Jev)")
+DISPLAY_NAME = "Auto (Role Router)"
 VERSION = "1.6"
 
 API = "https://api.typesafe.ai/v1/systemone"
