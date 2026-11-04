@@ -1,6 +1,6 @@
 """Fixed Codex execution roles; the shared OMP classifier remains adaptive."""
 import os
-from execution_config import main_model
+from execution_config import role_models
 
 from routing_policy import (
     ASTRA, LUNA, SOL, TERRA, POLICY_VERSION, QUESTIONS, EFFORTS, LEASES,
@@ -8,15 +8,7 @@ from routing_policy import (
 )
 
 EXECUTION_POLICY_VERSION = POLICY_VERSION + "-sol-main-roles-v2"
-ROLE_MODELS = {
-    "main": main_model(),
-    "explore": SOL,
-    "execute": SOL,
-    "mechanical": LUNA,
-    "visual": TERRA,
-    "plan": ASTRA,
-    "review": ASTRA,
-}
+ROLE_MODELS = role_models()
 EFFORT_QUESTIONS = {name: QUESTIONS[name] for name in ("effort", "lease")}
 
 
@@ -36,16 +28,16 @@ ROLE_INSTRUCTIONS = """
 Fixed-role delegation policy:
 You own the task, requirements, priorities, integration and final acceptance.
 For worthwhile bounded delegation, use an offered role agent:
-router_role_explore: code discovery and evidence gathering, on Sol.
-router_role_execute: bounded implementation or complex tests, on Sol.
+router_role_explore: code discovery and evidence gathering, on {explore}.
+router_role_execute: bounded implementation or complex tests, on {execute}.
 router_role_mechanical: established mechanical edits, formatting, factual
-documentation and simple checks, on Luna. Return ambiguity to the parent.
+documentation and simple checks, on {mechanical}. Return ambiguity to the parent.
 router_role_visual: image inspection and continuous browser/desktop workflows,
-on Terra. A browser session must have only one active operator.
+on {visual}. A browser session must have only one active operator.
 router_role_plan: difficult architecture, material trade-offs or challenging a
-high-risk proposal, on Astra. Routine planning stays with the parent.
+high-risk proposal, on {plan}. Routine planning stays with the parent.
 router_role_review: independent final review or security, permission,
-concurrency, migration and compatibility review, on Astra.
+concurrency, migration and compatibility review, on {review}.
 Use only agent types offered by the current tool schema. If unavailable, report
 that limitation; never invent an agent, swap the main model, or launch a
 side-channel agent. Respect user/repository limits on delegation.
@@ -70,7 +62,7 @@ def execution_role(payload):
 
 
 def questions_for_state(state):
-    return EFFORT_QUESTIONS if state.get("execution_model") in ROLE_MODELS.values() else QUESTIONS
+    return EFFORT_QUESTIONS if state.get("execution_model") in (LUNA, TERRA, SOL, ASTRA) else QUESTIONS
 
 
 def execution_decision(answers, model):
@@ -92,5 +84,6 @@ def execution_decision(answers, model):
 def prepare_role(payload, role):
     if role == "main":
         instructions = payload.get("instructions") or ""
-        if ROLE_INSTRUCTIONS not in instructions:
-            payload["instructions"] = instructions + "\n" + ROLE_INSTRUCTIONS
+        guidance = ROLE_INSTRUCTIONS.format(**ROLE_MODELS)
+        if guidance not in instructions:
+            payload["instructions"] = instructions + "\n" + guidance

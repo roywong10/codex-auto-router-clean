@@ -107,21 +107,30 @@ Smoke must show a completed response, matching selected and response models,
 effort, and a fresh `opencode-go` or `jev` classifier decision. A picker entry,
 health response, or technical fallback alone is not end-to-end verification.
 
-## Main Model Configuration
+## Role Model Configuration
 
 Create `~/.config/codex-auto-router/config.json`:
 
 ```json
 {
   "execution": {
-    "main_model": "gpt-6.1-sol"
+    "main_model": "gpt-6.1-sol",
+    "explore_model": "gpt-6.1-sol",
+    "execute_model": "gpt-6.1-sol",
+    "mechanical_model": "gpt-6-luna",
+    "visual_model": "gpt-6.1-terra",
+    "plan_model": "gpt-6-astra",
+    "review_model": "gpt-6-astra"
   }
 }
 ```
 
 Supported values: `gpt-6-luna`, `gpt-6.1-terra`, `gpt-6.1-sol`, `gpt-6-astra`.
-Missing configuration defaults to Sol. Invalid JSON, unknown fields, and
-unsupported models fail explicitly. Worker assignments remain unchanged.
+Every field is optional; omitted roles use the defaults shown above. Each role
+can be overridden independently, including explore versus execute and plan
+versus review. Invalid JSON, unknown fields, and unsupported models fail
+explicitly. Existing main-only configuration remains valid. Model selection
+does not change a role's permissions or its independently automatic effort.
 The catalog retains its existing shared conservative context limits; selecting
 a model does not expand the advertised window.
 

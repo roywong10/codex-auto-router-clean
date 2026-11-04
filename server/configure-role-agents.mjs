@@ -1,15 +1,27 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { CODEX_AGENTS_DIR } from "../router/src/paths.mjs";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
-export const EXECUTION_ROLES = Object.freeze({
+export const ROLE_MODELS = JSON.parse(execFileSync(
+  process.env.JEV_PYTHON || "python3",
+  [fileURLToPath(new URL("./execution_config.py", import.meta.url))],
+  { encoding: "utf8" },
+));
+
+const ROLE_DESCRIPTIONS = {
   explore: ["Sol", "Read-only code discovery and evidence gathering."],
   execute: ["Sol", "Bounded implementation and complex tests in explicitly owned files."],
   mechanical: ["Luna", "Established mechanical edits, factual documentation and simple checks."],
   visual: ["Terra", "Visual inspection and continuous browser or desktop operations."],
   plan: ["Astra", "Difficult architecture, material trade-offs and proposal challenges."],
   review: ["Astra", "Independent final code review and risk-focused verification."],
-});
+};
+export const EXECUTION_ROLES = Object.freeze(Object.fromEntries(
+  Object.entries(ROLE_DESCRIPTIONS).map(([role, [, description]]) =>
+    [role, [ROLE_MODELS[role], description]]),
+));
 
 export function roleAgentDefinition(role) {
   const [model, description] = EXECUTION_ROLES[role];

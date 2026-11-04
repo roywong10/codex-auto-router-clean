@@ -4,15 +4,8 @@ import {
   readUserModels,
   writeUserModels,
 } from "../router/src/user-models.mjs";
-import { configureRoleAgents, EXECUTION_ROLES } from "./configure-role-agents.mjs";
-import { execFileSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
-
-const mainModel = execFileSync(
-  process.env.JEV_PYTHON || "python3",
-  [fileURLToPath(new URL("./execution_config.py", import.meta.url))],
-  { encoding: "utf8" },
-).trim();
+import { configureRoleAgents, EXECUTION_ROLES, ROLE_MODELS } from "./configure-role-agents.mjs";
+const mainModel = ROLE_MODELS.main;
 
 const decisionProvider = process.env.JEV_DECISION_PROVIDER || "typesafe";
 if (!["typesafe", "opencode-go"].includes(decisionProvider)) {
@@ -29,7 +22,7 @@ export const JEV_MODEL = Object.freeze({
   listed: true,
   displayName: "Auto (Role Router)",
   description:
-    `Fixed ${mainModel} main agent; automatic effort by ${usesDeepSeek ? "DeepSeek V4.1 Flash via OpenCode Go" : "Jev"}. Dedicated Sol, Luna, Terra and Astra role agents.`,
+    `Fixed ${mainModel} main agent; automatic effort by ${usesDeepSeek ? "DeepSeek V4.1 Flash via OpenCode Go" : "Jev"}. Configurable specialist role agents.`,
   priority: 95,
   defaultEffort: "medium",
   reasoningLevels: [
