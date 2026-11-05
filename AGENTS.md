@@ -14,10 +14,11 @@ verification. Preserve upstream license notices and attribution.
 - The main model defaults to Sol. Explore/execute default to Sol, mechanical to
   Luna, visual to Terra, and plan/review to Astra. All seven roles are configurable
   independently in `~/.config/codex-auto-router/config.json`.
-- Each fixed role independently adapts effort. On the main route only, picker
-  high sets a medium floor, xhigh a high floor, and max an xhigh floor.
-- Classifier errors retain the assigned model at medium, subject to the main
-  floor. Fixed roles fail on exhausted native quota rather than switch providers.
+- Each fixed role independently adapts effort. The main picker is a soft
+  classifier preference, not a floor or ceiling; simple work can use medium/low.
+  Workers do not inherit it. Preference changes isolate routing leases.
+- Classifier errors retain the assigned model at medium.
+  Fixed roles fail on exhausted native quota rather than switch providers.
 - Classification-only `/v1/route` retains its independent adaptive policy.
   `JEV_EXECUTION_POLICY=adaptive` restores the legacy main policy; it does not
   change worker models or `/v1/route`.
@@ -87,8 +88,8 @@ summarizes routing; `router refresh-catalog` republishes the catalog. Neither
 operation proves live model access or classifier quality.
 
 The `jev-router.off` and `jev-router.shadow` sentinels bypass applied classifier
-decisions. Fixed-role requests retain their assigned model at medium, with the
-main effort floor; legacy adaptive requests retain their separate behavior.
+decisions. Fixed-role requests retain their assigned model at medium;
+legacy adaptive requests retain their separate behavior.
 The `jev-router.hide-signature` sentinel hides ordinary reply route headers.
 Structured JSON is never prefixed. Debug captures remain private even when
 bounded or sanitized.

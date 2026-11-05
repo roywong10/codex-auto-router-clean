@@ -37,10 +37,11 @@ and plan/review use Astra. All seven roles are independently configurable in
 `~/.config/codex-auto-router/config.json`; consult the README for supported
 models. Settings load at startup and catalog generation, not per request.
 
-Each role automatically selects effort. Main-thread picker high sets a medium
-floor, xhigh a high floor, and max an xhigh floor. Workers do not inherit this
-preference. Classifier errors keep the assigned model at medium, subject to the
-main floor; fixed roles do not silently switch providers on quota exhaustion.
+Each role automatically selects effort. The main-thread picker is a soft
+classifier preference, not a floor or ceiling: complex work favors the preferred
+depth or higher, while simple work can use medium/low. Workers do not inherit
+this preference. Classifier errors keep the assigned model at medium;
+fixed roles do not silently switch providers on quota exhaustion.
 Classification-only `/v1/route` retains its separate adaptive model policy.
 
 The executor receives full canonical context; the classifier receives a bounded

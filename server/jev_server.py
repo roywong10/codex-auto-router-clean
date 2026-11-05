@@ -101,7 +101,7 @@ from routing_policy import (ASTRA, EFFORTS, LUNA, NATIVE_MODELS, POLICY_VERSION,
                             TIERS, decision_from_answers, route)
 from execution_roles import (
     EXECUTION_POLICY_VERSION, ROLE_MODELS, execution_decision, execution_role,
-    prepare_role, questions_for_state, effort_floor, constrain_effort,
+    prepare_role, questions_for_state, effort_preference,
 )
 
 import opencode_decision
@@ -2193,7 +2193,7 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError:
             return self._json(400, {"error": {"message": "unsupported execution role"}})
         fixed_model = ROLE_MODELS.get(role)
-        minimum_effort = effort_floor(payload, role)
+        preferred_effort = effort_preference(payload, role)
         prepare_role(payload, role)
         # Our own answer signatures never travel back upstream (see
         # strip_signatures): the model must not read its own route tag.
@@ -2222,7 +2222,9 @@ class Handler(BaseHTTPRequestHandler):
         decision_source = None
         scope = cache_scope(payload, task)
         if role:
-            scope = hashlib.sha256((scope + ":" + role).encode()).hexdigest()[:16]
+            scope = hashlib.sha256(
+                (scope + ":" + role + ":" + (preferred_effort or "auto")).encode()
+            ).hexdigest()[:16]
         affinity = cache_affinity(scope, payload, signature=canonical_signature)
         leased = route_lease(scope, payload, step)
         if os.path.exists(OFF_PATH):
@@ -2248,6 +2250,8 @@ class Handler(BaseHTTPRequestHandler):
                 if fixed_model:
                     state["execution_model"] = fixed_model
                     state["execution_role"] = role
+                    if preferred_effort:
+                        state["effort_preference"] = preferred_effort
                 failure_evidence = route_failure_evidence(scope, payload)
                 if failure_evidence:
                     state["recent_route_failure"] = failure_evidence
@@ -2283,9 +2287,6 @@ class Handler(BaseHTTPRequestHandler):
             model, effort, speed, gate = (fixed_model or ASTRA,
                                          "medium" if fixed_model else None,
                                          "default", "shadow" if fixed_model else "shadow(astra)")
-
-        if role == "main":
-            effort = constrain_effort(effort, minimum_effort)
 
         # ONLY while native usage is exhausted (manual flag or observed quota
         # failure), replace the OpenAI ladder with locally discovered configured
@@ -2395,8 +2396,6 @@ class Handler(BaseHTTPRequestHandler):
             # Native-only technical recovery, once and before any bytes escape.
             # Do not re-enter native service after a quota/provider fallback.
             recovery_model, recovery_effort = fixed_model or ASTRA, "medium"
-            if role == "main":
-                recovery_effort = constrain_effort(recovery_effort, minimum_effort)
             if (model, effort) != (recovery_model, recovery_effort):
                 model, effort = recovery_model, recovery_effort
                 apply_route(model, effort)
@@ -2452,7 +2451,8 @@ class Handler(BaseHTTPRequestHandler):
             "policy_version": POLICY_VERSION,
             "execution_policy": EXECUTION_POLICY_VERSION if role else "adaptive",
             "execution_role": role,
-            "effort_floor": minimum_effort if role == "main" else None,
+            "effort_preference": preferred_effort,
+            "effort_floor": None,
             "route_probabilities": decision["probabilities"] if decision else None,
             "chosen_probability": decision["chosen_probability"] if decision else None,
             "astra_policy": decision["astra_policy"] if decision else None,

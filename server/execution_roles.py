@@ -7,21 +7,17 @@ from routing_policy import (
     _validated_choice,
 )
 
-EXECUTION_POLICY_VERSION = POLICY_VERSION + "-sol-main-roles-v2"
+EXECUTION_POLICY_VERSION = POLICY_VERSION + "-sol-main-roles-v3"
 ROLE_MODELS = role_models()
 EFFORT_QUESTIONS = {name: QUESTIONS[name] for name in ("effort", "lease")}
 
 
-def effort_floor(payload, role):
+def effort_preference(payload, role):
     if role != "main":
-        return "low"
+        return None
     reasoning = payload.get("reasoning")
     requested = reasoning.get("effort") if isinstance(reasoning, dict) else None
-    return {"high": "medium", "xhigh": "high", "max": "xhigh"}.get(requested, "low")
-
-
-def constrain_effort(effort, floor):
-    return max(effort, floor, key=EFFORTS.index) if effort in EFFORTS else floor
+    return requested if isinstance(requested, str) and requested in EFFORTS else None
 
 
 ROLE_INSTRUCTIONS = """
@@ -62,7 +58,25 @@ def execution_role(payload):
 
 
 def questions_for_state(state):
-    return EFFORT_QUESTIONS if state.get("execution_model") in (LUNA, TERRA, SOL, ASTRA) else QUESTIONS
+    if state.get("execution_model") not in (LUNA, TERRA, SOL, ASTRA):
+        return QUESTIONS
+    preference = state.get("effort_preference")
+    if state.get("execution_role") != "main" or preference not in EFFORTS:
+        return EFFORT_QUESTIONS
+    effort = {
+        **EFFORT_QUESTIONS["effort"],
+        "instructions": (
+            EFFORT_QUESTIONS["effort"]["instructions"]
+            + f" The main-thread picker preference is {preference}, not a floor or ceiling."
+            " For complex, ambiguous or high-risk remaining work, favor the preferred"
+            " depth or higher; prefer xhigh/max when requested for difficult investigation,"
+            " architecture or multi-step synthesis. Do not automatically discount the"
+            " preference by one level. For clearly simple, bounded or mechanical remaining"
+            " work, choose medium or low even if the preference is xhigh/max."
+            " Evaluate remaining reasoning difficulty, not just the next tool's syntax."
+        ),
+    }
+    return {**EFFORT_QUESTIONS, "effort": effort}
 
 
 def execution_decision(answers, model):

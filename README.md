@@ -40,8 +40,8 @@ DeepSeek V4.1 Flash. Arbitrary compatible API endpoints are not yet supported.
 
 Each worker independently adapts effort. Delegation depends on caller tools,
 user instructions, and repository rules. A browser session has one operator.
-Classifier failure keeps the assigned model at Medium, subject to the main
-floor. Fixed roles fail explicitly on exhausted native quota instead of silently
+Classifier failure keeps the assigned model at Medium.
+Fixed roles fail explicitly on exhausted native quota instead of silently
 changing providers.
 
 ## Requirements
@@ -172,16 +172,18 @@ leases. Reopen Codex to reload the catalog. User settings stay outside Git.
 
 ## Effort Preference
 
-| Picker choice | Main-thread minimum |
-| --- | --- |
-| Low / Medium / absent | Low: unrestricted automatic selection |
-| High | Medium |
-| XHigh | High |
-| Max | XHigh |
+The main-thread picker is a preference, not a floor or ceiling. The classifier
+receives the selected effort and considers it alongside remaining task difficulty.
+XHigh/Max preferences favor deeper reasoning for complex investigations,
+architecture, and synthesis. Clearly simple steps can still use Medium or Low;
+hard work can exceed a lower preference. These are classifier instructions, not
+a guarantee of any particular choice.
 
-Applied effort is the higher of automatic effort and the floor, including lease
-reuse and technical recovery. Workers do not inherit this floor. The service
-cannot distinguish an app-supplied default from the same manual selection.
+Workers independently choose effort without inheriting the main preference.
+Changing preference isolates routing leases so the previous preference's
+decision is not reused. Classifier failure and empty-completion technical
+recovery use Medium. The service cannot distinguish an app-supplied default
+from the same manual selection.
 
 ## Operations
 
@@ -193,7 +195,7 @@ bin/jev-codex-router uninstall
 
 Use `uninstall --revoke-session` only to revoke native sharing. Uninstall retains
 local keys and diagnostics. Logs under `~/.codex/codex-router/` are private:
-`depth` records classifier effort, `effort_floor` the preference, and `effort`
+`depth` records classifier effort, `effort_preference` the preference, and `effort`
 the applied value. Never upload raw logs or conversations.
 
 To update a clean checkout, wait for tasks to finish and run:

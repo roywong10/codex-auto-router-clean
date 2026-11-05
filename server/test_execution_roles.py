@@ -18,21 +18,24 @@ def effort_answer(effort="high"):
 
 
 class Contract(unittest.TestCase):
-    def test_effort_floor_matrix_and_role_isolation(self):
-        for requested, floor in [
-            (None, "low"), ("low", "low"), ("medium", "low"),
-            ("high", "medium"), ("xhigh", "high"), ("max", "xhigh"),
-            ("unknown", "low"),
-        ]:
+    def test_effort_preference_validation_and_role_isolation(self):
+        for requested in [None, *jev.EFFORTS, "unknown", [], {}]:
             payload = {"reasoning": {"effort": requested}}
-            self.assertEqual(roles.effort_floor(payload, "main"), floor)
-            for effort in jev.EFFORTS:
-                self.assertEqual(
-                    roles.constrain_effort(effort, floor),
-                    jev.EFFORTS[max(jev.EFFORTS.index(effort), jev.EFFORTS.index(floor))],
-                )
+            expected = requested if isinstance(requested, str) and requested in jev.EFFORTS else None
+            self.assertEqual(roles.effort_preference(payload, "main"), expected)
             for role in roles.ROLE_MODELS.keys() - {"main"}:
-                self.assertEqual(roles.effort_floor(payload, role), "low")
+                self.assertIsNone(roles.effort_preference(payload, role))
+
+    def test_preference_guidance_is_shared_by_classifiers_and_isolated_from_workers(self):
+        state = {"execution_model": jev.SOL, "execution_role": "main",
+                 "effort_preference": "xhigh"}
+        questions = roles.questions_for_state(state)
+        self.assertIn("preference is xhigh", questions["effort"]["instructions"])
+        self.assertIn("medium or low", go.request_body(state)["messages"][0]["content"])
+        self.assertEqual(set(questions), {"effort", "lease"})
+        self.assertIs(roles.questions_for_state({**state, "execution_role": "mechanical"}),
+                      roles.EFFORT_QUESTIONS)
+        self.assertNotIn("preference is", roles.EFFORT_QUESTIONS["effort"]["instructions"])
 
     def test_main_classifier_only_selects_effort_and_lease_for_fixed_sol(self):
         state = {"execution_model": jev.SOL, "execution_role": "main", "task": "final review"}
@@ -100,13 +103,16 @@ class Execution(unittest.TestCase):
         self.assertEqual(self.records[-1]["execution_role"], "main")
         self.assertEqual(fixture.Edge.headers_seen[-1].get("x-codex-router-exact-route"), "1")
 
-    def test_main_floor_applies_to_forwarded_effort_but_not_workers(self):
+    def test_preference_is_not_a_floor_and_only_main_receives_it(self):
         for role in roles.ROLE_MODELS:
             with self.subTest(role=role), mock.patch.object(
                 jev, "call_jev_routed", return_value=effort_answer("low")
-            ):
+            ) as judge:
                 self.call_fixed(role, reasoning={"effort": "max"})
-                expected = "xhigh" if role == "main" else "low"
+                expected = "low"
+                state = judge.call_args.args[1]
+                self.assertEqual(state.get("effort_preference"), "max" if role == "main" else None)
+                self.assertEqual(self.records[-1]["effort_preference"], state.get("effort_preference"))
                 self.assertEqual(self.records[-1]["effort"], expected)
                 forwarded = fixture.Edge.payloads[-1]
                 updates = [item["reasoning"]["effort"] for item in forwarded["input"]
@@ -114,22 +120,22 @@ class Execution(unittest.TestCase):
                 self.assertEqual(updates[-1] if updates else forwarded["reasoning"]["effort"],
                                  expected)
 
-    def test_main_floor_applies_on_classifier_failure(self):
+    def test_classifier_failure_remains_medium_despite_preference(self):
         with mock.patch.object(jev, "call_jev_routed", side_effect=TimeoutError()):
             self.call_fixed(reasoning={"effort": "max"})
-        self.assertEqual(self.records[-1]["effort"], "xhigh")
+        self.assertEqual(self.records[-1]["effort"], "medium")
         self.assertEqual(self.records[-1]["decision_source"], "technical_fallback")
 
-    def test_main_floor_applies_to_low_leased_decision(self):
+    def test_preference_does_not_raise_leased_effort(self):
         leased = roles.execution_decision(effort_answer("low")["answers"], jev.SOL)
         with mock.patch.object(jev, "route_lease", return_value=leased), \
              mock.patch.object(jev, "call_jev_routed") as judge:
             self.call_fixed(reasoning={"effort": "high"})
         judge.assert_not_called()
-        self.assertEqual(self.records[-1]["effort"], "medium")
+        self.assertEqual(self.records[-1]["effort"], "low")
         self.assertTrue(self.records[-1]["lease_hit"])
 
-    def test_empty_completion_recovery_respects_main_floor(self):
+    def test_empty_completion_recovery_remains_medium(self):
         attempts = []
 
         def forward(handler, payload, path, stream, debug, marker, model,
@@ -143,7 +149,21 @@ class Execution(unittest.TestCase):
              mock.patch.object(jev.Handler, "_forward", new=forward):
             with self.assertRaisesRegex(Exception, "502"):
                 self.call_fixed(reasoning={"effort": "max"})
-        self.assertEqual(attempts, ["max", "xhigh"])
+        self.assertEqual(attempts, ["max", "medium"])
+
+    def test_medium_and_xhigh_decisions_survive_xhigh_preference(self):
+        for effort in ("medium", "xhigh"):
+            with mock.patch.object(jev, "call_jev_routed", return_value=effort_answer(effort)):
+                self.call_fixed(reasoning={"effort": "xhigh"})
+            self.assertEqual(self.records[-1]["effort"], effort)
+
+    def test_preference_changes_isolate_lease_scope(self):
+        with mock.patch.object(jev, "call_jev_routed", return_value=effort_answer()):
+            for preference in ("high", "xhigh", "xhigh"):
+                self.call_fixed(reasoning={"effort": preference})
+        scopes = [r["cache_scope"] for r in self.records]
+        self.assertNotEqual(scopes[0], scopes[1])
+        self.assertEqual(scopes[1], scopes[2])
 
     def test_each_role_has_a_fixed_model_with_independent_auto_effort(self):
         for role, model in roles.ROLE_MODELS.items():
